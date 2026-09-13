@@ -22,6 +22,12 @@ export interface AddressProfile {
   /** Wei as a decimal string — bigint does not survive JSON messaging. */
   ethBalanceWei: string;
   isContract: boolean;
+  /**
+   * EIP-7702 delegation target, when the address is an EOA whose bytecode is
+   * a `0xef0100 || address` designator (common since Pectra). Such addresses
+   * stay EOA-classified — they are NOT contracts.
+   */
+  eoaDelegation: Address | null;
   tokenMetadata: TokenMetadata | null;
   fetchedAt: number;
 }
