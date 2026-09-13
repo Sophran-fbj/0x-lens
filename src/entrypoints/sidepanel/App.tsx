@@ -3,6 +3,7 @@ import { storage } from 'wxt/utils/storage';
 import type { Address } from '@/core/address';
 import { requestProfile } from '@/core/messaging/client';
 import type { AddressProfile } from '@/core/messaging/protocol';
+import { ERROR_COPY, toErrorCode, type LensErrorCode } from '@/core/errors';
 import { formatEth } from '@/core/format';
 import { Identicon } from '@/components/hover-card/Identicon';
 
@@ -15,7 +16,7 @@ import { Identicon } from '@/components/hover-card/Identicon';
 export default function App() {
   const [address, setAddress] = useState<Address | null>(null);
   const [profile, setProfile] = useState<AddressProfile | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LensErrorCode | null>(null);
   const [copied, setCopied] = useState(false);
   const [, tick] = useState(0);
 
@@ -43,7 +44,9 @@ export default function App() {
         if (res.ok) setProfile(res.profile);
         else setError(res.error);
       })
-      .catch((err) => alive && setError(String(err)));
+      .catch((err) => {
+        if (alive) setError(toErrorCode(err));
+      });
     return () => {
       alive = false;
     };
@@ -94,7 +97,7 @@ export default function App() {
 
           {error ? (
             <section className="px-4 py-6 text-[10px] tracking-[0.12em] text-red-400">
-              LOOKUP FAILED
+              {ERROR_COPY[error] ?? 'Lookup failed'}
               <div className="mt-2 normal-case tracking-normal text-lens-dim">{error}</div>
             </section>
           ) : !profile ? (

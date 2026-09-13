@@ -50,6 +50,20 @@ export class LensScanner {
     window.addEventListener('resize', this.scheduleFlush);
     // Late font loading shifts text — recompute all rects once fonts settle.
     document.fonts?.ready.then(() => this.scheduleFlush());
+    // Layout-only shifts (image load, accordions, class/style toggles)
+    // produce NO DOM mutations — but they move our page-absolute boxes.
+    // The browser's layout-shift entries are exactly the signal we need;
+    // scroll is excluded by definition, and our own overlay boxes cause no
+    // layout, so they never fire this. Safe only because repositioning
+    // updates boxes in place (see positionEntry).
+    try {
+      new PerformanceObserver(() => this.scheduleFlush()).observe({
+        type: 'layout-shift',
+        buffered: false,
+      });
+    } catch {
+      /* engine without layout-shift support — resize/fonts still cover most cases */
+    }
   }
 
   // ---- initial scan -------------------------------------------------------
@@ -145,26 +159,28 @@ export class LensScanner {
   }
 
   /** (Re)compute the highlight boxes for one match. Drops it if the text
-   *  node changed underneath us and the range is no longer valid. */
+   *  node changed underneath us and the range is no longer valid.
+   *  Existing boxes are UPDATED in place, never destroyed — repositioning
+   *  runs on every layout shift, and replacing nodes would churn hover
+   *  state (found by review round 2: the card stopped opening). */
   private positionEntry(entry: MatchEntry): void {
-    for (const el of entry.els) this.overlay.release(el);
-    entry.els = [];
-
-    let rects: DOMRectList;
+    let rects: DOMRect[];
     try {
       const range = document.createRange();
       range.setStart(entry.node, entry.start);
       range.setEnd(entry.node, entry.end);
-      rects = range.getClientRects();
+      rects = [...range.getClientRects()].filter(
+        (r) => r.width > 0 && r.height > 0, // display:none etc.
+      );
     } catch {
       this.dropEntry(entry);
       return;
     }
-    for (const rect of rects) {
-      if (rect.width === 0 || rect.height === 0) continue; // display:none etc.
-      const el = this.overlay.alloc(entry.address);
-      this.overlay.place(el, rect);
-      entry.els.push(el);
+    // Sync box count to the (possibly changed) rect count, then update.
+    while (entry.els.length > rects.length) this.overlay.release(entry.els.pop()!);
+    while (entry.els.length < rects.length) entry.els.push(this.overlay.alloc(entry.address));
+    for (let i = 0; i < rects.length; i++) {
+      this.overlay.place(entry.els[i]!, rects[i]!);
     }
   }
 
@@ -208,12 +224,15 @@ export class LensScanner {
   };
 
   private flush(): void {
-    // 1. Prune matches whose text node left the DOM (SPA re-renders).
+    // 1. Prune matches whose text node left the DOM (SPA re-renders). Also
+    //    clear `processed` — virtual lists re-insert the SAME node later,
+    //    and it must rescan then (found by review: 1 → 0 → 0 was permanent).
     for (const [node, entries] of this.nodeMatches) {
       if (!node.isConnected) {
         for (const e of entries) for (const el of e.els) this.overlay.release(el);
         this.liveMatches -= entries.length;
         this.nodeMatches.delete(node);
+        this.processed.delete(node);
       }
     }
 

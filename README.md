@@ -19,7 +19,11 @@ for the full readout.
 - **No wallet, no onboarding, no accounts.** Install and browse.
 - **No third-party APIs, no backend, no telemetry.** Ethereum JSON-RPC is the
   only data source; nothing ever leaves the browser except address lookups to
-  your RPC endpoint. No page content is transmitted.
+  your RPC endpoint — enforced mechanically: CCIP-Read is disabled (offchain
+  ENS resolvers cannot redirect lookups to their own gateways) and the service
+  worker's `fetch` rejects any non-RPC origin. No page content is transmitted,
+  and error messages crossing into page-rendered UI are stable codes, never
+  raw RPC errors (which can embed endpoint URLs and keys).
 - **The host page is never modified.** Highlights are computed from
   `Range.getClientRects()` and painted in an isolated Shadow DOM overlay —
   React/Vue reconciliation on the page can never see us.

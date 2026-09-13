@@ -28,6 +28,23 @@ try {
   await page.goto(FIXTURE, { waitUntil: 'load' });
   await page.waitForTimeout(1500);
 
+  // Warm the SW + RPC connection once: a cold service worker meeting a
+  // slow-to-hang public RPC can stall the very first resolve for the full
+  // test timeout. The tests assert OUR code, not today's routing weather.
+  await ctx
+    .serviceWorkers()[0]
+    ?.evaluate(async () => {
+      try {
+        await fetch('https://ethereum.reth.rs/rpc', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'eth_blockNumber', params: [] }),
+        });
+      } catch {
+        /* warmup best-effort */
+      }
+    });
+
   const hoverAddress = (address) =>
     page.evaluate((a) => {
       const root = document.querySelector('[data-0x-lens-overlay]')?.shadowRoot;

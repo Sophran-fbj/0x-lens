@@ -32,6 +32,21 @@ try {
   await page.goto(FIXTURE, { waitUntil: 'load' });
   await page.waitForTimeout(1500);
 
+  // Warm the SW + RPC connection once (see card.mjs for rationale).
+  await ctx
+    .serviceWorkers()[0]
+    ?.evaluate(async () => {
+      try {
+        await fetch('https://ethereum.reth.rs/rpc', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'eth_blockNumber', params: [] }),
+        });
+      } catch {
+        /* warmup best-effort */
+      }
+    });
+
   const hover = async (address) => {
     const c = await page.evaluate((a) => {
       const b = document
@@ -118,12 +133,24 @@ try {
   await panelApp.screenshot({ path: 'e2e/panel.png' });
   check('panel screenshot saved', true, 'e2e/panel.png');
 
-  // --- 6. SW-side handoff state ----------------------------------------------
+  // --- 6. SW-side handoff state + network guard -------------------------------
   // (WXT strips the 'session:' area prefix when writing → raw key 'lens:focus')
   const focus = sw
     ? await sw.evaluate(async () => (await chrome.storage.session.get('lens:focus'))['lens:focus'])
     : null;
   check('storage handoff (storage.session lens:focus) = USDC', focus === USDC, `got ${focus}`);
+
+  // The SW's fetch guard must reject any non-RPC origin — the structural
+  // enforcement of "the RPC endpoint is the only host we talk to".
+  const guard = await sw.evaluate(async () => {
+    try {
+      await fetch('https://example.com/');
+      return 'allowed';
+    } catch (e) {
+      return /blocked/i.test(String(e?.message)) ? 'blocked' : `other: ${String(e?.message).slice(0, 60)}`;
+    }
+  });
+  check('SW fetch guard blocks non-RPC origins', guard === 'blocked', guard);
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

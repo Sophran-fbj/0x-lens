@@ -1,4 +1,5 @@
 import type { Address } from '../address';
+import type { LensErrorCode } from '../errors';
 
 /**
  * Message protocol between content script / side panel and the background
@@ -38,7 +39,10 @@ export type LensMessage =
 
 export type LensResponse =
   | { ok: true; profile: AddressProfile }
-  | { ok: false; error: string };
+  /** Stable error CODE (see core/errors.ts) — never a raw RPC message:
+   *  those can embed the RPC URL with API keys, and the card renders into
+   *  an open shadow root the host page can read. */
+  | { ok: false; error: LensErrorCode };
 
 /** openPanel responds immediately — opening the panel is fire-and-forget. */
 export type OpenPanelResponse = { ok: boolean; error?: string };

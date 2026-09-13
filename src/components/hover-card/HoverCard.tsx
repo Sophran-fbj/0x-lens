@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { AddressProfile } from '@/core/messaging/protocol';
 import { openLens, requestProfile } from '@/core/messaging/client';
+import { ERROR_COPY, toErrorCode, type LensErrorCode } from '@/core/errors';
 import { formatEth, shortenAddress } from '@/core/format';
 import type { CardTarget } from './store';
 import { cardStore, resolvedAddresses } from './store';
@@ -20,7 +21,7 @@ const rowVariants = {
 
 export function HoverCard({ target }: { target: CardTarget }) {
   const [profile, setProfile] = useState<AddressProfile | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LensErrorCode | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -36,7 +37,9 @@ export function HoverCard({ target }: { target: CardTarget }) {
           setError(res.error);
         }
       })
-      .catch((err) => alive && setError(String(err)));
+      .catch((err) => {
+        if (alive) setError(toErrorCode(err));
+      });
     return () => {
       alive = false;
     };
@@ -58,7 +61,7 @@ export function HoverCard({ target }: { target: CardTarget }) {
 
       {error ? (
         <div className="oxl-empty">
-          LOOKUP FAILED
+          {ERROR_COPY[error] ?? 'Lookup failed'}
           <span className="oxl-scan-dim" />
           <span className="oxl-err">{error}</span>
         </div>

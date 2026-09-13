@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { storage } from 'wxt/utils/storage';
 import type { Address } from '@/core/address';
+import { redactError, toErrorCode } from '@/core/errors';
 import type { LensMessage, LensResponse, OpenPanelResponse } from '@/core/messaging/protocol';
 import { resolveProfile } from '@/core/services/resolve';
 
@@ -9,7 +10,11 @@ async function handleResolve(address: Address): Promise<LensResponse> {
     const profile = await resolveProfile(address);
     return { ok: true, profile };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    // Raw messages can embed the RPC URL (API keys in path) and the card
+    // renders into an open shadow root — only stable codes cross (see
+    // src/core/errors.ts).
+    console.error('[0x Lens] resolve failed:', redactError(err));
+    return { ok: false, error: toErrorCode(err) };
   }
 }
 

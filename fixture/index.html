@@ -83,6 +83,18 @@ address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
     <div id="stress"></div>
   </section>
 
+  <section>
+    <h2>10 · Layout-only shift (style toggle — no DOM/text mutation)</h2>
+    <p><button id="shift">push address down 160px</button></p>
+    <p id="shift-target" class="addr yes" style="transition: margin-top 0.15s ease">0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984</p>
+  </section>
+
+  <section>
+    <h2>11 · Remove &amp; re-insert the same text node</h2>
+    <p><button id="detach">detach → re-attach</button> (click twice)</p>
+    <p id="detach-target" class="addr yes">0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2</p>
+  </section>
+
   <script>
     // Page's own script tag is skipped by the scanner (SKIP_TAGS).
     const VITALIK = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
@@ -116,6 +128,22 @@ address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
       p.textContent = mutated
         ? 'now it contains one: ' + USDC
         : 'this paragraph starts without an address';
+    });
+
+    // Section 10: layout-only shift via class/style (no DOM mutation).
+    let pushed = false;
+    document.getElementById('shift').addEventListener('click', () => {
+      pushed = !pushed;
+      document.getElementById('shift-target').style.marginTop = pushed ? '160px' : '0px';
+    });
+
+    // Section 11: detach → re-attach the SAME element (same text node).
+    // (Hold the element reference: getElementById can't see a detached node.)
+    let stash = null;
+    const detachP = document.getElementById('detach-target');
+    document.getElementById('detach').addEventListener('click', () => {
+      if (stash) { stash.appendChild(detachP); stash = null; }
+      else { stash = detachP.parentElement; detachP.remove(); }
     });
   </script>
 </body>

@@ -40,9 +40,9 @@ try {
   });
 
   check('overlay host attached', stats.overlayHost);
-  // static: 3 (case forms) + 3 (contracts) + 1 (unknown) + 4 (link/code/pre/quote) = 11
-  // stress: 150 spans → total 161
-  check('initial highlight count = 161', stats.highlights === 161, `got ${stats.highlights}`);
+  // static: 3 (case forms) + 3 (contracts) + 1 (unknown) + 4 (link/code/pre/quote)
+  //        + 1 (section 10) + 1 (section 11) = 13; stress: 150 spans → 163
+  check('initial highlight count = 163', stats.highlights === 163, `got ${stats.highlights}`);
   check('boxes have page-absolute coords', stats.boxes.length > 0 && stats.boxes.every((b) => Number.parseFloat(b.top) > 0));
 
   // Negative cases: broken checksum / truncated / tx hash must NOT be inside the overlay.
@@ -54,7 +54,7 @@ try {
   const afterAdd = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after dynamic inject = 162', afterAdd === 162, `got ${afterAdd}`);
+  check('highlight after dynamic inject = 164', afterAdd === 164, `got ${afterAdd}`);
 
   // Text mutation (characterData path).
   await page.click('#mutate');
@@ -62,7 +62,7 @@ try {
   const afterMutate = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after text mutation = 163', afterMutate === 163, `got ${afterMutate}`);
+  check('highlight after text mutation = 165', afterMutate === 165, `got ${afterMutate}`);
 
   // Stress button (MO + near-cap path).
   await page.click('#stress-btn');
@@ -70,7 +70,46 @@ try {
   const afterStress = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after +150 stress = 313', afterStress === 313, `got ${afterStress}`);
+  check('highlight after +150 stress = 315', afterStress === 315, `got ${afterStress}`);
+
+  // Layout-only shift: style toggle moves the address with ZERO DOM mutation.
+  // The highlight must follow (layout-shift PerformanceObserver path).
+  const UNI = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984';
+  const topOf = (addr) =>
+    page.evaluate((a) => {
+      const el = document
+        .querySelector('[data-0x-lens-overlay]')
+        .shadowRoot.querySelector(`.hl[data-address="${a}"]`);
+      // page-absolute: page.click may auto-scroll between measurements
+      return el ? el.getBoundingClientRect().top + window.scrollY : null;
+    }, addr);
+  const beforeShift = await topOf(UNI);
+  await page.click('#shift');
+  await page.waitForTimeout(900); // transition 150ms + debounce 200ms + margin
+  const afterShift = await topOf(UNI);
+  check(
+    'layout-only shift repositions highlight',
+    beforeShift !== null && afterShift !== null && afterShift - beforeShift > 140,
+    `Δ=${afterShift !== null && beforeShift !== null ? (afterShift - beforeShift).toFixed(0) : 'n/a'}px`,
+  );
+
+  // Remove & re-insert the SAME text node: highlight must come back.
+  const MKR = '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2';
+  const mkrCount = () =>
+    page.evaluate(
+      (a) =>
+        document
+          .querySelector('[data-0x-lens-overlay]')
+          .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`).length,
+      MKR,
+    );
+  check('MKR highlighted before detach', (await mkrCount()) === 1);
+  await page.click('#detach');
+  await page.waitForTimeout(600);
+  check('highlight gone after detach', (await mkrCount()) === 0, `got ${await mkrCount()}`);
+  await page.click('#detach');
+  await page.waitForTimeout(600);
+  check('highlight restored after re-insert', (await mkrCount()) === 1, `got ${await mkrCount()}`);
 
   // Scroll invariance: page-absolute coords mean no listeners; just sanity-check a box
   // still covers its address after scrolling.
