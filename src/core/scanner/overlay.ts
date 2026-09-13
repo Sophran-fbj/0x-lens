@@ -23,7 +23,7 @@ const HIGHLIGHT_CSS = `
   .hl {
     position: absolute;
     pointer-events: auto;
-    cursor: default;
+    cursor: pointer;
     border-radius: 3px;
     background: rgba(94, 234, 212, 0.06);
     box-shadow: inset 0 -1px 0 rgba(94, 234, 212, 0.4);

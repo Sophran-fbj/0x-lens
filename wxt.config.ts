@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { mainnet } from 'viem/chains';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'wxt';
 
 /**
@@ -26,6 +27,11 @@ function resolveRpcUrl(): string {
 export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-react'],
+  // Tailwind is imported only by the side panel's css; the content script
+  // keeps its hand-written shadow-root styles, so no utilities leak there.
+  // (cast: @tailwindcss/vite ships rolldown-vite types; wxt bundles its own
+  // vite copy — runtime-compatible, types are not)
+  vite: () => ({ plugins: [tailwindcss() as never] }),
   manifest: {
     name: '0x Lens',
     version: '0.1.0',

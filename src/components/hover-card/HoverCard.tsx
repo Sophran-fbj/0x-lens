@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { AddressProfile } from '@/core/messaging/protocol';
-import { requestProfile } from '@/core/messaging/client';
+import { openLens, requestProfile } from '@/core/messaging/client';
 import { formatEth, shortenAddress } from '@/core/format';
 import type { CardTarget } from './store';
-import { resolvedAddresses } from './store';
+import { cardStore, resolvedAddresses } from './store';
 import { Identicon } from './Identicon';
 
 /**
@@ -112,6 +112,19 @@ export function HoverCard({ target }: { target: CardTarget }) {
         <span className="oxl-dot" />
         ETHEREUM MAINNET
       </div>
+
+      {/* GESTURE RULE: openLens sends the message as its first statement —
+          keep this handler synchronous up to that call. */}
+      <button
+        type="button"
+        className="oxl-open"
+        onClick={() => {
+          openLens(target.address);
+          cardStore.hide();
+        }}
+      >
+        OPEN LENS ⌁
+      </button>
     </div>
   );
 }

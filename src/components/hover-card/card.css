@@ -28,6 +28,9 @@
   line-height: 1.5;
   cursor: default;
   user-select: none;
+  /* The host carries pointer-events:none (inline) and `all: initial` —
+     without this the whole card would INHERIT none and be click-through. */
+  pointer-events: auto;
 }
 
 .oxl-head {
@@ -103,6 +106,29 @@
   font-size: 9px;
   letter-spacing: 0.18em;
   color: var(--text-dim);
+}
+
+.oxl-open {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 7px 0 6px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 6px;
+  background: rgba(94, 234, 212, 0.06);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+.oxl-open:hover {
+  background: rgba(94, 234, 212, 0.14);
+  box-shadow: 0 0 12px rgba(94, 234, 212, 0.18);
+}
+.oxl-open:active {
+  transform: translateY(1px);
 }
 
 .oxl-dot {

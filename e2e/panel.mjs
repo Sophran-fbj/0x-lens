@@ -1,0 +1,143 @@
+/**
+ * Phase 4 end-to-end verification: side panel handoff over the REAL gesture
+ * path (real click → content script message → sidePanel.open in background).
+ *
+ * Two observability facts worked around here:
+ * - playwright does not surface side-panel targets as Pages → panel OPENING is
+ *   asserted via CDP Target.getTargets (the sidepanel.html target exists);
+ * - the panel's DOM is asserted by opening the same sidepanel.html as a normal
+ *   tab (chrome.tabs.create) — identical app code, identical storage watch.
+ *
+ * Prereqs: `npm run build`, fixture server running (`npm run fixture`).
+ *   node e2e/panel.mjs
+ */
+import { createRequire } from 'module';
+import { getAddress } from 'viem';
+
+const require = createRequire(import.meta.url);
+const { chromium } = require('D:/code/nvmmode/nvm/node_global/node_modules/@playwright/cli/node_modules/playwright');
+
+const EXT_PATH = 'D:/code/web3p/0x-lens/.output/chrome-mv3';
+const PROFILE = 'D:/code/web3p/0x-lens/.playwright-profile';
+const FIXTURE = 'http://localhost:5173/';
+
+const VITALIK = getAddress('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045');
+const USDC = getAddress('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48');
+
+const results = [];
+const check = (name, pass, detail = '') => {
+  results.push({ name, pass, detail });
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
+};
+
+const ctx = await chromium.launchPersistentContext(PROFILE, {
+  headless: false,
+  channel: 'msedge',
+  reducedMotion: 'no-preference',
+  args: [`--disable-extensions-except=${EXT_PATH}`, `--load-extension=${EXT_PATH}`],
+});
+
+try {
+  const page = ctx.pages()[0] ?? (await ctx.newPage());
+  await page.goto(FIXTURE, { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+
+  const hover = async (address) => {
+    const c = await page.evaluate((a) => {
+      const b = document
+        .querySelector('[data-0x-lens-overlay]')
+        .shadowRoot.querySelector(`.hl[data-address="${a}"]`)
+        .getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }, address);
+    await page.mouse.move(c.x, c.y);
+  };
+
+  // --- 1. hover vitalik until the card is up --------------------------------
+  await hover(VITALIK);
+  await page.waitForFunction(
+    (needle) =>
+      document.querySelector('[data-0x-lens-card]')?.shadowRoot?.querySelector('.oxl-card')
+        ?.textContent.includes(needle) ?? false,
+    'vitalik.eth',
+    { timeout: 45000, polling: 200 },
+  );
+  check('hover card ready', true);
+
+  // --- 2. real click on OPEN LENS (the gesture path under test) -------------
+  const btn = await page.evaluate(() => {
+    const r = document
+      .querySelector('[data-0x-lens-card]')
+      .shadowRoot.querySelector('.oxl-open')
+      .getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  await page.mouse.click(btn.x, btn.y);
+
+  // --- 3. panel target must exist (side panels are not playwright Pages) ----
+  const cdp = await ctx.browser().newBrowserCDPSession();
+  let opened = false;
+  const openDeadline = Date.now() + 10000;
+  while (Date.now() < openDeadline) {
+    const { targetInfos } = await cdp.send('Target.getTargets');
+    if (targetInfos.some((t) => t.url.includes('sidepanel.html'))) {
+      opened = true;
+      break;
+    }
+    await page.waitForTimeout(250);
+  }
+  check('side panel opened via real click (gesture path)', opened);
+
+  // --- 4. panel app DOM: same code opened as a tab ---------------------------
+  const sw = ctx.serviceWorkers()[0];
+  const tabPromise = ctx.waitForEvent('page', { timeout: 15000 });
+  await sw.evaluate(() => chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel.html') }));
+  const panelApp = await tabPromise;
+  await panelApp.waitForFunction(
+    (needle) => document.body.textContent.includes(needle),
+    'vitalik.eth',
+    { timeout: 30000, polling: 200 },
+  );
+  check('panel app renders vitalik identity', true);
+  const text = await panelApp.evaluate(() => document.body.textContent);
+  check('panel app shows full address', text.includes(VITALIK));
+  check('panel app has copy button', text.includes('COPY'));
+  check(
+    'panel app has Etherscan link',
+    await panelApp.evaluate(() => !!document.querySelector('a[href*="etherscan.io/address"]')),
+  );
+
+  // --- 5. clicking ANOTHER address switches the app (storage watch) ----------
+  await hover(USDC);
+  await page.waitForTimeout(400);
+  const usdc = await page.evaluate((a) => {
+    const b = document
+      .querySelector('[data-0x-lens-overlay]')
+      .shadowRoot.querySelector(`.hl[data-address="${a}"]`)
+      .getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  }, USDC);
+  await page.mouse.click(usdc.x, usdc.y);
+  await panelApp.waitForFunction(
+    (needle) => document.body.textContent.includes(needle),
+    'USD Coin',
+    { timeout: 30000, polling: 200 },
+  );
+  check('clicking USDC switches panel app (storage watch)', true);
+
+  await panelApp.screenshot({ path: 'e2e/panel.png' });
+  check('panel screenshot saved', true, 'e2e/panel.png');
+
+  // --- 6. SW-side handoff state ----------------------------------------------
+  // (WXT strips the 'session:' area prefix when writing → raw key 'lens:focus')
+  const focus = sw
+    ? await sw.evaluate(async () => (await chrome.storage.session.get('lens:focus'))['lens:focus'])
+    : null;
+  check('storage handoff (storage.session lens:focus) = USDC', focus === USDC, `got ${focus}`);
+
+  const failed = results.filter((r) => !r.pass);
+  console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
+  process.exitCode = failed.length ? 1 : 0;
+} finally {
+  await ctx.close();
+}

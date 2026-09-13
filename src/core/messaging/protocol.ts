@@ -39,3 +39,6 @@ export type LensMessage =
 export type LensResponse =
   | { ok: true; profile: AddressProfile }
   | { ok: false; error: string };
+
+/** openPanel responds immediately — opening the panel is fire-and-forget. */
+export type OpenPanelResponse = { ok: boolean; error?: string };

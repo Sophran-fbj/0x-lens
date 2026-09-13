@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  /* Mirrors the hover card tokens (src/components/hover-card/card.css). */
+  --color-lens-bg: #0a0e11;
+  --color-lens-surface: #11161b;
+  --color-lens-border: #2a343d;
+  --color-lens-text: #e6edf3;
+  --color-lens-dim: #8b98a5;
+  --color-lens-accent: #5eead4;
+  --color-lens-accent-dim: rgba(94, 234, 212, 0.55);
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+html,
+body {
+  background: var(--color-lens-bg);
+  color: var(--color-lens-text);
+}

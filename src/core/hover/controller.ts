@@ -1,4 +1,5 @@
 import type { Address } from '../address';
+import { openLens } from '@/core/messaging/client';
 import { cardStore, CLOSE_GRACE_MS, INTENT_MS, resolvedAddresses, SCAN_MS } from '@/components/hover-card/store';
 import type { OverlayLayer } from '../scanner/overlay';
 
@@ -29,6 +30,7 @@ export class HoverController {
   start(): void {
     this.overlay.eventSurface.addEventListener('mouseover', this.onOver);
     this.overlay.eventSurface.addEventListener('mouseout', this.onOut);
+    this.overlay.eventSurface.addEventListener('click', this.onClick);
     this.cardHost.addEventListener('mouseover', this.cancelHide);
     this.cardHost.addEventListener('mouseout', this.scheduleHide);
     window.addEventListener('scroll', this.onScroll, { capture: true, passive: true });
@@ -55,6 +57,16 @@ export class HoverController {
   private readonly onScroll = (): void => {
     this.clearIntent();
     this.cancelScan();
+    this.hideNow();
+  };
+
+  /** Clicking a highlighted address opens the side panel focused on it.
+   *  GESTURE RULE: the message goes out as the first statement. */
+  private readonly onClick = (e: MouseEvent): void => {
+    const hl = closestHl(e.target);
+    const address = hl?.dataset.address;
+    if (!address) return;
+    openLens(address as Address);
     this.hideNow();
   };
 
