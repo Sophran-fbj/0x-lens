@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { cardStore, type CardTarget } from './store';
 import { HoverCard } from './HoverCard';
+import { identityKey } from '@/core/messaging/protocol';
 
 const CARD_WIDTH = 300;
 const MARGIN = 8;
@@ -57,7 +58,7 @@ export function CardLayer() {
       <AnimatePresence>
         {target && (
           <motion.div
-            key={target.identity}
+            key={identityKey(target.identity)}
             ref={ref}
             initial={{ opacity: 0, y: 6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

@@ -1,10 +1,15 @@
 import { browser } from 'wxt/browser';
 import { storage } from 'wxt/utils/storage';
 import { redactError, toErrorCode } from '@/core/errors';
-import type { LensMessage, LensResponse, OpenPanelResponse } from '@/core/messaging/protocol';
+import type {
+  LensIdentity,
+  LensMessage,
+  LensResponse,
+  OpenPanelResponse,
+} from '@/core/messaging/protocol';
 import { resolveIdentity } from '@/core/services/resolve';
 
-async function handleResolve(identity: string): Promise<LensResponse> {
+async function handleResolve(identity: LensIdentity): Promise<LensResponse> {
   try {
     const profile = await resolveIdentity(identity);
     return { ok: true, profile };

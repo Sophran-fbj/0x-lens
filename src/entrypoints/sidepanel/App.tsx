@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { storage } from 'wxt/utils/storage';
 import { requestProfile } from '@/core/messaging/client';
 import type { AddressProfile, LensIdentity } from '@/core/messaging/protocol';
+import { identityKey } from '@/core/messaging/protocol';
 import { ERROR_COPY, toErrorCode, type LensErrorCode } from '@/core/errors';
 import { formatEth, shortenAddress } from '@/core/format';
 import { Identicon } from '@/components/hover-card/Identicon';
@@ -18,7 +19,7 @@ export default function App() {
   const [error, setError] = useState<LensErrorCode | null>(null);
   const [copied, setCopied] = useState(false);
   const [, tick] = useState(0);
-  const isName = !!identity && !identity.startsWith('0x');
+  const isName = identity?.kind === 'name';
 
   // Focus handoff: initial read + live watch.
   useEffect(() => {
@@ -50,7 +51,8 @@ export default function App() {
     return () => {
       alive = false;
     };
-  }, [identity]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identity ? identityKey(identity) : null]);
 
   // Keep "scanned …s ago" fresh without re-fetching.
   useEffect(() => {
@@ -60,8 +62,10 @@ export default function App() {
 
   const copy = async (): Promise<void> => {
     if (!identity) return;
+    const text =
+      identity.kind === 'address' ? identity.address : (profile?.address ?? identity.name);
     try {
-      await navigator.clipboard.writeText(identity.startsWith('0x') ? identity : (profile?.address ?? identity));
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     } catch {
@@ -76,13 +80,22 @@ export default function App() {
       ) : (
         <>
           <header className="flex items-center gap-3 border-b border-lens-border px-4 py-4">
-            <Identicon seed={profile?.address ?? identity} size={40} />
+            <Identicon
+              seed={profile?.address ?? (identity.kind === 'address' ? identity.address : identity.name)}
+              size={40}
+            />
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-semibold">
-                {isName ? identity : (profile?.ensName ?? 'Unknown account')}
+                {identity.kind === 'name'
+                  ? identity.name
+                  : (profile?.ensName ?? 'Unknown account')}
               </div>
               <div className="mt-0.5 break-all text-[10px] leading-relaxed text-lens-dim">
-                {profile ? profile.address : shortenAddress(identity)}
+                {profile
+                  ? profile.address
+                  : identity.kind === 'address'
+                    ? identity.address
+                    : 'resolving…'}
               </div>
             </div>
             <button
@@ -132,7 +145,9 @@ export default function App() {
 
           <footer className="mt-auto border-t border-lens-border px-4 py-3">
             <a
-              href={`https://etherscan.io/address/${profile?.address ?? identity}`}
+              href={`https://etherscan.io/address/${
+                profile?.address ?? (identity.kind === 'address' ? identity.address : identity.name)
+              }`}
               target="_blank"
               rel="noreferrer"
               className="block rounded border border-lens-accent-dim bg-lens-accent/5 py-2 text-center text-[10px] tracking-[0.2em] text-lens-accent transition-colors hover:bg-lens-accent/15"

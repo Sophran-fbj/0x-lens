@@ -56,13 +56,15 @@ resolvers (disabled for the single-origin privacy guarantee).
 
 ## Measured numbers
 
-Scanning (real pages, initial scan, idle-chunked off the critical path):
+Scanning (real pages, initial scan, idle-chunked off the critical path —
+median/range over several runs; wall-clock includes idle-scheduling waits
+while the page itself loads, main-thread work per chunk is capped at 8 ms):
 
-| Page | Text nodes | Highlights | Scan time |
+| Page | Text nodes | Highlights | Scan wall-time |
 |---|---|---|---|
-| Test rig (167 identities incl. stress) | 204 | 167 | ~615 ms |
-| etherscan.io token page | 2104 | 1 truncated row recovered via href (visible addresses are truncated; full ones live in `<script>` payloads, deliberately never scanned) | 52 ms |
-| Wikipedia · Ethereum | 1977 | 0 | 17 ms |
+| Test rig (171 identities incl. stress) | ~220 | 171 | ~600 ms (stable) |
+| etherscan.io token page | ~2100 | 1 truncated row recovered via href (visible addresses are truncated; full ones live in `<script>` payloads, deliberately never scanned) | 20–90 ms typical, ~1 s on a busy load |
+| Wikipedia · Ethereum | 1977 | 0 | 20–170 ms |
 
 Hover → data: first hover ≈ 1.7–2.3 s end-to-end (includes the 550 ms
 acquire animation + one RPC round trip to a public endpoint); re-hover of a

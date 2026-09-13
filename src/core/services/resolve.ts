@@ -1,5 +1,6 @@
 import { LensError } from '../errors';
-import type { AddressProfile } from '../messaging/protocol';
+import type { AddressProfile, LensIdentity } from '../messaging/protocol';
+import { identityKey } from '../messaging/protocol';
 import { cacheGet, cacheSet } from './cache';
 import { publicClient } from './chain';
 import { fetchProfile } from './profile';
@@ -24,8 +25,8 @@ const BALANCE_TTL_MS = 60_000;
 
 const inflight = new Map<string, Promise<AddressProfile>>();
 
-export function resolveIdentity(identity: string): Promise<AddressProfile> {
-  const key = identity.toLowerCase();
+export function resolveIdentity(identity: LensIdentity): Promise<AddressProfile> {
+  const key = identityKey(identity);
   const pending = inflight.get(key);
   if (pending) return pending;
 
@@ -34,20 +35,20 @@ export function resolveIdentity(identity: string): Promise<AddressProfile> {
   return p;
 }
 
-async function resolveUncached(identity: string): Promise<AddressProfile> {
-  // ENS forward lookup: name → address, then the normal pipeline.
-  // (ccipRead is disabled client-wide; names on offchain resolvers will
-  // surface as LOOKUP_FAILED — an accepted, privacy-consistent miss.)
-  if (!identity.startsWith('0x')) {
-    const address = await publicClient.getEnsAddress({ name: identity });
+async function resolveUncached(identity: LensIdentity): Promise<AddressProfile> {
+  if (identity.kind === 'name') {
+    // ENS forward lookup: name → address, then the normal pipeline.
+    // (ccipRead is disabled client-wide; names on offchain resolvers will
+    // surface as LOOKUP_FAILED — an accepted, privacy-consistent miss.)
+    const address = await publicClient.getEnsAddress({ name: identity.name });
     if (!address) throw new LensError('NAME_NOT_FOUND');
     const profile = await resolveAddress(address);
     // The queried name is authoritative for display even when the address
     // has no reverse record.
-    if (!profile.ensName) return { ...profile, ensName: identity };
+    if (!profile.ensName) return { ...profile, ensName: identity.name };
     return profile;
   }
-  return resolveAddress(identity as `0x${string}`);
+  return resolveAddress(identity.address);
 }
 
 async function resolveAddress(address: `0x${string}`): Promise<AddressProfile> {

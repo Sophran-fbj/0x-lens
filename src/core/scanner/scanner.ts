@@ -35,6 +35,7 @@ interface MatchEntry {
 
 const MAX_MATCHES = 500;
 const MO_DEBOUNCE_MS = 200;
+const REPOSITION_DEBOUNCE_MS = 300;
 const IDLE_BUDGET_MS = 8; // scan work budget per idle tick
 
 export class LensScanner {
@@ -43,7 +44,9 @@ export class LensScanner {
   private mo: MutationObserver | null = null;
   private pendingRoots: Node[] = [];
   private pendingTexts: Text[] = [];
+  private pendingHrefs: Element[] = [];
   private flushTimer: number | null = null;
+  private repositionTimer: number | null = null;
   private liveMatches = 0;
   private capLogged = false;
   private startedAt = 0;
@@ -230,9 +233,23 @@ export class LensScanner {
     this.mo = new MutationObserver((records) => {
       for (const r of records) {
         if (r.type === 'childList') {
+          // Subtrees leaving the DOM may come back (virtual lists, cached
+          // views) — possibly MUTATED while detached, which our body-rooted
+          // observer cannot see. Forget everything under them now.
+          for (const n of r.removedNodes) this.clearProcessedUnder(n);
           for (const n of r.addedNodes) this.pendingRoots.push(n);
         } else if (r.type === 'characterData') {
           this.pendingTexts.push(r.target as Text);
+        } else if (r.type === 'attributes') {
+          if (r.attributeName === 'href') {
+            // A link gained/changed its target: truncated text underneath
+            // must re-validate against the new href.
+            this.pendingHrefs.push(r.target as Element);
+          } else {
+            // class/style changes can move text (incl. via transform) with
+            // no childList/characterData mutation — geometry only.
+            this.scheduleReposition();
+          }
         }
       }
       if (records.length > 0) this.scheduleFlush();
@@ -241,8 +258,34 @@ export class LensScanner {
       childList: true,
       subtree: true,
       characterData: true,
+      attributes: true,
+      attributeFilter: ['href', 'class', 'style'],
     });
+
+    // CSS transitions/animations (transform slides, keyframe accordions)
+    // produce no attribute mutations at all — but their events do.
+    for (const ev of ['transitionrun', 'animationstart', 'animationend']) {
+      window.addEventListener(ev, this.scheduleReposition, { capture: true, passive: true });
+    }
   }
+
+  private clearProcessedUnder(root: Node): void {
+    if (root.nodeType === Node.TEXT_NODE) {
+      this.processed.delete(root as Text);
+      return;
+    }
+    for (const n of walkTextNodes(root)) this.processed.delete(n);
+  }
+
+  /** Light path: geometry only (transform/class/style motion). Deliberately
+   *  separate from the full flush — animating pages fire this constantly. */
+  private readonly scheduleReposition = (): void => {
+    if (this.repositionTimer !== null) return;
+    this.repositionTimer = window.setTimeout(() => {
+      this.repositionTimer = null;
+      this.repositionAll();
+    }, REPOSITION_DEBOUNCE_MS);
+  };
 
   private readonly scheduleFlush = (): void => {
     if (this.flushTimer !== null) return;
@@ -269,6 +312,14 @@ export class LensScanner {
     const texts = this.pendingTexts;
     this.pendingTexts = [];
     for (const t of texts) this.invalidate(t);
+
+    // 2b. Links whose href appeared/changed: re-validate their text.
+    const hrefs = this.pendingHrefs;
+    this.pendingHrefs = [];
+    for (const a of hrefs) {
+      if (!a.isConnected) continue;
+      for (const n of walkTextNodes(a)) this.invalidate(n);
+    }
 
     // 3. Scan added subtrees (WeakSet dedups overlap with previous scans).
     const roots = this.pendingRoots;

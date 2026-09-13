@@ -134,11 +134,16 @@ try {
   check('panel screenshot saved', true, 'e2e/panel.png');
 
   // --- 6. SW-side handoff state + network guard -------------------------------
-  // (WXT strips the 'session:' area prefix when writing → raw key 'lens:focus')
+  // (WXT strips the 'session:' area prefix when writing → raw key 'lens:focus';
+  //  the value is the typed identity object {kind, address|name})
   const focus = sw
     ? await sw.evaluate(async () => (await chrome.storage.session.get('lens:focus'))['lens:focus'])
     : null;
-  check('storage handoff (storage.session lens:focus) = USDC', focus === USDC, `got ${focus}`);
+  check(
+    'storage handoff (storage.session lens:focus) = USDC',
+    focus?.kind === 'address' && focus.address === USDC,
+    `got ${JSON.stringify(focus)}`,
+  );
 
   // The SW's fetch guard must reject any non-RPC origin — the structural
   // enforcement of "the RPC endpoint is the only host we talk to".

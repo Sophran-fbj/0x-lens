@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { AddressProfile } from '@/core/messaging/protocol';
+import { identityKey } from '@/core/messaging/protocol';
 import { openLens, requestProfile } from '@/core/messaging/client';
 import { ERROR_COPY, toErrorCode, type LensErrorCode } from '@/core/errors';
 import { formatEth, shortenAddress } from '@/core/format';
@@ -22,18 +23,20 @@ const rowVariants = {
 export function HoverCard({ target }: { target: CardTarget }) {
   const [profile, setProfile] = useState<AddressProfile | null>(null);
   const [error, setError] = useState<LensErrorCode | null>(null);
-  const isName = !target.identity.startsWith('0x');
+  const isName = target.identity.kind === 'name';
+  const identity = target.identity;
+  const key = identityKey(identity);
 
   useEffect(() => {
     let alive = true;
     setProfile(null);
     setError(null);
-    requestProfile(target.identity)
+    requestProfile(identity)
       .then((res) => {
         if (!alive) return;
         if (res.ok) {
           setProfile(res.profile);
-          resolvedAddresses.add(target.identity);
+          resolvedAddresses.add(key);
         } else {
           setError(res.error);
         }
@@ -44,22 +47,34 @@ export function HoverCard({ target }: { target: CardTarget }) {
     return () => {
       alive = false;
     };
-  }, [target.identity]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   // Slow path: rows stagger in from hidden. Fast (already-scanned) path:
   // render them immediately — no repeated ceremony.
   const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.045 } } };
 
   // Header: names show themselves; addresses show ENS or the truncation.
-  const displayName = isName ? target.identity : (profile?.ensName ?? shortenAddress(target.identity));
+  const displayName =
+    identity.kind === 'name'
+      ? identity.name
+      : (profile?.ensName ?? shortenAddress(identity.address));
+  const identiconSeed =
+    profile?.address ?? (identity.kind === 'address' ? identity.address : identity.name);
 
   return (
     <div className="oxl-card" role="tooltip">
       <div className="oxl-head">
-        <Identicon seed={profile?.address ?? target.identity} />
+        <Identicon seed={identiconSeed} />
         <div style={{ minWidth: 0 }}>
           <div className="oxl-name">{displayName}</div>
-          <div className="oxl-sub">{profile ? shortenAddress(profile.address) : 'resolving…'}</div>
+          <div className="oxl-sub">
+            {profile
+              ? shortenAddress(profile.address)
+              : identity.kind === 'address'
+                ? shortenAddress(identity.address)
+                : 'resolving…'}
+          </div>
         </div>
       </div>
 
@@ -132,7 +147,7 @@ export function HoverCard({ target }: { target: CardTarget }) {
         type="button"
         className="oxl-open"
         onClick={() => {
-          openLens(target.identity);
+          openLens(identity);
           cardStore.hide();
         }}
       >

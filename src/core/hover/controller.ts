@@ -1,4 +1,6 @@
 import { openLens } from '@/core/messaging/client';
+import type { LensIdentity } from '@/core/messaging/protocol';
+import { identityKey } from '@/core/messaging/protocol';
 import { cardStore, CLOSE_GRACE_MS, INTENT_MS, resolvedAddresses, SCAN_MS } from '@/components/hover-card/store';
 import type { OverlayLayer } from '../scanner/overlay';
 
@@ -62,8 +64,7 @@ export class HoverController {
   /** Clicking a highlighted identity opens the side panel focused on it.
    *  GESTURE RULE: the message goes out as the first statement. */
   private readonly onClick = (e: MouseEvent): void => {
-    const hl = closestHl(e.target);
-    const identity = hl?.dataset.address ?? hl?.dataset.name;
+    const identity = closestHl(e.target) && identityFrom(closestHl(e.target)!);
     if (!identity) return;
     openLens(identity);
     this.hideNow();
@@ -85,18 +86,18 @@ export class HoverController {
   };
 
   private trigger(hl: HTMLDivElement): void {
-    // dataset.address for addresses, dataset.name for ENS names.
-    const identity = hl.dataset.address ?? hl.dataset.name;
+    const identity = identityFrom(hl);
     if (!identity) return;
     const anchorRect = hl.getBoundingClientRect();
     this.activeHl = hl;
+    const key = identityKey(identity);
 
     const show = (): void => {
       this.cleanupScan();
-      cardStore.show({ identity, anchorRect, fast: resolvedAddresses.has(identity) });
+      cardStore.show({ identity, anchorRect, fast: resolvedAddresses.has(key) });
     };
 
-    if (this.reduced || resolvedAddresses.has(identity)) {
+    if (this.reduced || resolvedAddresses.has(key)) {
       show();
       return;
     }
@@ -138,4 +139,13 @@ export class HoverController {
 
 function closestHl(target: EventTarget | null): HTMLDivElement | null {
   return (target as Element | null)?.closest?.('.hl') as HTMLDivElement | null;
+}
+
+/** Highlight boxes carry the scanner's typed knowledge: dataset.address for
+ *  addresses, dataset.name for ENS names (labels may start with 0x — never
+ *  infer the kind from the string). */
+function identityFrom(hl: HTMLDivElement): LensIdentity | null {
+  if (hl.dataset.address) return { kind: 'address', address: hl.dataset.address as `0x${string}` };
+  if (hl.dataset.name) return { kind: 'name', name: hl.dataset.name };
+  return null;
 }

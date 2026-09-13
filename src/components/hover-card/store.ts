@@ -4,8 +4,7 @@
  */
 
 export interface CardTarget {
-  /** Checksummed address or lowercase ENS name. */
-  identity: string;
+  identity: import('@/core/messaging/protocol').LensIdentity;
   /** Viewport rect of the hovered highlight box at trigger time. */
   anchorRect: DOMRect;
   /** True when the acquire animation was already played for this identity on

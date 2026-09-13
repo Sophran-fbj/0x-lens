@@ -43,8 +43,9 @@ try {
   check('overlay host attached', stats.overlayHost);
   // static: 3 (case forms) + 3 (contracts) + 1 (unknown) + 4 (link/code/pre/quote)
   //        + 1 (sec 10) + 1 (sec 11) + 2 (sec 12 href-recovered)
-  //        + 2 (sec 13 ENS names) = 17; stress: 150 spans → 167
-  check('initial highlight count = 167', stats.highlights === 167, `got ${stats.highlights}`);
+  //        + 2 (sec 13 ENS names) + 2 (sec 14 names) + 1 (sec 15 href query)
+  //        + 1 (sec 16 transform-p) = 21; stress: 150 spans → 171
+  check('initial highlight count = 171', stats.highlights === 171, `got ${stats.highlights}`);
   check('boxes have page-absolute coords', stats.boxes.length > 0 && stats.boxes.every((b) => Number.parseFloat(b.top) > 0));
 
   // href-recovery: both truncated forms resolve to the same href address.
@@ -71,6 +72,27 @@ try {
   check('unregistered name highlighted', (await nameCount('unregistered-name-9x7.eth')) === 1);
   check('email domain not highlighted', (await nameCount('foo.eth')) === 0);
 
+  // multi-level names match WHOLE (never partially as their parent); dotted
+  // email domains never match; 0x-prefixed labels are names, not addresses.
+  check('sub.vitalik.eth matched whole', (await nameCount('sub.vitalik.eth')) === 1);
+  check('subdomain adds no parent highlight', (await nameCount('vitalik.eth')) === 1);
+  check(
+    'dotted email domain not highlighted',
+    (await nameCount('mail.foo.eth')) === 0 && (await nameCount('foo.eth')) === 0,
+  );
+  check('0x-prefixed label treated as name', (await nameCount('0xdead.eth')) === 1);
+
+  // href with several addresses: the one CONSISTENT with the visible text wins.
+  const HOLDER = getAddress('0xbbbb2222bbbb2222bbbb2222bbbb2222bbbb9999');
+  const holderCount = await page.evaluate(
+    (a) =>
+      document
+        .querySelector('[data-0x-lens-overlay]')
+        .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`).length,
+    HOLDER,
+  );
+  check('multi-address href picks the consistent one', holderCount === 1, `got ${holderCount}`);
+
   // Negative cases: broken checksum / truncated / tx hash must NOT be inside the overlay.
   // (They can't be — overlay only contains valid matches — so count correctness above covers it.)
 
@@ -80,7 +102,7 @@ try {
   const afterAdd = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after dynamic inject = 168', afterAdd === 168, `got ${afterAdd}`);
+  check('highlight after dynamic inject = 172', afterAdd === 172, `got ${afterAdd}`);
 
   // Text mutation (characterData path).
   await page.click('#mutate');
@@ -88,7 +110,7 @@ try {
   const afterMutate = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after text mutation = 169', afterMutate === 169, `got ${afterMutate}`);
+  check('highlight after text mutation = 173', afterMutate === 173, `got ${afterMutate}`);
 
   // Stress button (MO + near-cap path).
   await page.click('#stress-btn');
@@ -96,7 +118,7 @@ try {
   const afterStress = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after +150 stress = 319', afterStress === 319, `got ${afterStress}`);
+  check('highlight after +150 stress = 323', afterStress === 323, `got ${afterStress}`);
 
   // Layout-only shift: style toggle moves the address with ZERO DOM mutation.
   // The highlight must follow (layout-shift PerformanceObserver path).
@@ -136,6 +158,60 @@ try {
   await page.click('#detach');
   await page.waitForTimeout(600);
   check('highlight restored after re-insert', (await mkrCount()) === 1, `got ${await mkrCount()}`);
+
+  // Late href: link without a usable target at scan time gains one later.
+  const LATE = getAddress('0x5555eeee5555eeee5555eeee5555eeee5555aaaa');
+  const lateCount = () =>
+    page.evaluate(
+      (a) =>
+        document
+          .querySelector('[data-0x-lens-overlay]')
+          .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`).length,
+      LATE,
+    );
+  await page.click('#late-href');
+  await page.waitForTimeout(700);
+  check('late-set href recovers truncation', (await lateCount()) === 1, `got ${await lateCount()}`);
+
+  // No-match node reused: detached, mutated while detached, re-attached.
+  const REUSE = getAddress('0x7777cccc8888dddd9999eeee0000bbbb1111aaaa');
+  const reuseCount = () =>
+    page.evaluate(
+      (a) =>
+        document
+          .querySelector('[data-0x-lens-overlay]')
+          .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`).length,
+      REUSE,
+    );
+  await page.click('#reuse-cycle'); // detach + mutate (mutations invisible to MO)
+  await page.waitForTimeout(300);
+  await page.click('#reuse-cycle'); // re-attach the SAME node
+  await page.waitForTimeout(700);
+  check('no-match node rescanned after reuse', (await reuseCount()) === 1, `got ${await reuseCount()}`);
+
+  // Transform movement: no layout shift, no DOM mutation — class toggle only.
+  const TRANSFORM_ADDR = getAddress('0x3333dddd4444eeee5555ffff6666aaaa7777bbbb');
+  const transformTop = () =>
+    page.evaluate(
+      (a) => {
+        const el = document
+          .querySelector('[data-0x-lens-overlay]')
+          .shadowRoot.querySelector(`.hl[data-address="${a}"]`);
+        return el ? el.getBoundingClientRect().top + window.scrollY : null;
+      },
+      TRANSFORM_ADDR,
+    );
+  const beforeTransform = await transformTop();
+  await page.click('#transform-toggle');
+  await page.waitForTimeout(900); // 300ms reposition debounce + margin
+  const afterTransform = await transformTop();
+  check(
+    'transform movement tracked (class/style path)',
+    beforeTransform !== null &&
+      afterTransform !== null &&
+      Math.abs(afterTransform - beforeTransform - 120) < 20,
+    `Δ=${beforeTransform !== null && afterTransform !== null ? (afterTransform - beforeTransform).toFixed(0) : 'n/a'}px`,
+  );
 
   // Scroll invariance: page-absolute coords mean no listeners; just sanity-check a box
   // still covers its address after scrolling.

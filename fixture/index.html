@@ -16,6 +16,7 @@
     button { padding: 8px 14px; cursor: pointer; margin-right: 8px; }
     #stress span { display: inline-block; margin: 3px; font-family: ui-monospace, monospace; font-size: 12px; }
     .hint { font-size: 13px; color: #6b7280; }
+    #transform-p.shifted { transform: translateY(120px); }
   </style>
 </head>
 <body>
@@ -108,6 +109,28 @@ address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
     <p class="no">unregistered-name-9x7.eth should show the empty state, and mail at user@foo.eth must NOT highlight.</p>
   </section>
 
+  <section>
+    <h2>14 · Multi-level names, 0x-prefixed labels, dotted email domains</h2>
+    <p class="yes">Multi-level must match WHOLE: <span class="addr yes">sub.vitalik.eth</span></p>
+    <p>0x-prefixed label is a NAME, not an address: <span class="addr yes">0xdead.eth</span></p>
+    <p class="no">Dotted email domain must NOT match: user@mail.foo.eth</p>
+  </section>
+
+  <section>
+    <h2>15 · href containing several addresses</h2>
+    <p class="yes"><a href="https://etherscan.io/token/0xaaaa1111aaaa1111aaaa1111aaaa1111aaaa1111?a=0xbbbb2222bbbb2222bbbb2222bbbb2222bbbb9999">0xbbbb…9999</a> — holder is in the query string</p>
+  </section>
+
+  <section>
+    <h2>16 · Late href, node reuse, transform movement</h2>
+    <p><button id="late-href">set href late</button>
+       <button id="reuse-cycle">detach → mutate → re-attach</button>
+       <button id="transform-toggle">translateY 120px</button></p>
+    <p><a id="late-link" href="#">0x5555…aaaa</a> (no valid href yet)</p>
+    <p id="reuse-p">this paragraph contains no identity for now</p>
+    <p id="transform-p" class="addr yes">0x3333dddd4444eeee5555ffff6666aaaa7777bbbb</p>
+  </section>
+
   <script>
     // Page's own script tag is skipped by the scanner (SKIP_TAGS).
     const VITALIK = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
@@ -157,6 +180,37 @@ address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
     document.getElementById('detach').addEventListener('click', () => {
       if (stash) { stash.appendChild(detachP); stash = null; }
       else { stash = detachP.parentElement; detachP.remove(); }
+    });
+
+    // Section 16a: href added long after first scan.
+    document.getElementById('late-href').addEventListener('click', () => {
+      document.getElementById('late-link').setAttribute(
+        'href',
+        'https://etherscan.io/address/0x5555eeee5555eeee5555eeee5555eeee5555aaaa',
+      );
+    });
+
+    // Section 16b: no-match node detached, MUTATED while detached, re-attached.
+    let reuseStash = null;
+    const reuseP = document.getElementById('reuse-p');
+    let reuseMutated = false;
+    document.getElementById('reuse-cycle').addEventListener('click', () => {
+      if (reuseStash) {
+        reuseStash.appendChild(reuseP);
+        reuseStash = null;
+      } else {
+        reuseStash = reuseP.parentElement;
+        reuseP.remove();
+        reuseMutated = !reuseMutated;
+        reuseP.textContent = reuseMutated
+          ? 'now it has one: 0x7777cccc8888dddd9999eeee0000bbbb1111aaaa'
+          : 'this paragraph contains no identity for now';
+      }
+    });
+
+    // Section 16c: transform movement (no layout shift, no DOM change).
+    document.getElementById('transform-toggle').addEventListener('click', () => {
+      document.getElementById('transform-p').classList.toggle('shifted');
     });
   </script>
 </body>

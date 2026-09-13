@@ -33,9 +33,18 @@ export interface AddressProfile {
   fetchedAt: number;
 }
 
-/** Identity = checksummed address ("0x…") or lowercase ENS name ("…​.eth").
- *  The background routes to the address pipeline or the ENS forward lookup. */
-export type LensIdentity = string;
+/**
+ * Identity is a DISCRIMINATED union, not a bare string — ENS labels may
+ * legally start with `0x` (e.g. `0xdead.eth`), so type routing must come
+ * from the scanner's knowledge, never from `startsWith('0x')`.
+ */
+export type LensIdentity =
+  | { kind: 'address'; address: Address }
+  | { kind: 'name'; name: string };
+
+export function identityKey(id: LensIdentity): string {
+  return id.kind === 'address' ? id.address.toLowerCase() : id.name.toLowerCase();
+}
 
 export type LensMessage =
   | { type: 'lens/resolve'; identity: LensIdentity }
