@@ -23,14 +23,19 @@ export const TRUNCATED_ADDRESS_RE = /\b0x[a-fA-F0-9]{4,8}(?:…|\.\.\.)[a-fA-F0-
  * ENS name in prose — full multi-level form: one or more ASCII labels
  * (1-61 chars, no leading/trailing hyphen) ending in `.eth`.
  *
- * The lookbehind `(?<![\w.@-])` is load-bearing: it forbids starting a
- * match after a dot (so `sub.vitalik.eth` can never partially match as
- * `vitalik.eth` — it matches whole or not at all) and after `@` or a word
- * char (so email domains like `user@mail.foo.eth` never match, even when
- * the domain has multiple labels). Unicode/emoji names are a deliberate
- * V1.5 non-goal (ENSIP-15 normalization).
+ * Left guard `(?<![\p{L}\p{N}_@.\-])`: no match may start after ANY letter
+ * or digit (Unicode — `éfoo.eth` must not yield `foo.eth`), a dot
+ * (`sub.vitalik.eth` matches whole or not at all), or `@` (email domains
+ * at any depth).
+ *
+ * Right guard `(?![\w-])(?!\.[\p{L}\p{N}])`: no word char or hyphen after
+ * `eth` (`foo.eth-link`), and no `.`+alphanumeric (`foo.eth.com`) — while
+ * a sentence-final period (`…vitalik.eth.`) still passes.
+ *
+ * Unicode/emoji names are a deliberate V1.5 non-goal (ENSIP-15).
  */
-export const ENS_NAME_RE = /(?<![\w.@-])(?:[a-z0-9](?:[a-z0-9-]{0,59}[a-z0-9])?\.)+eth\b/gi;
+export const ENS_NAME_RE =
+  /(?<![\p{L}\p{N}_@.\-])(?:[a-z0-9](?:[a-z0-9-]{0,59}[a-z0-9])?\.)+eth(?![\w-])(?!\.[\p{L}\p{N}])/giu;
 
 /** A full 0x{40} address extracted from an href string, EIP-55 checked.
  *  Lowercase/all-uppercase hex accepted per the address policy. */

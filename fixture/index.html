@@ -17,6 +17,7 @@
     #stress span { display: inline-block; margin: 3px; font-family: ui-monospace, monospace; font-size: 12px; }
     .hint { font-size: 13px; color: #6b7280; }
     #transform-p.shifted { transform: translateY(120px); }
+    #slow-p.slow-shifted { transform: translateY(120px); transition: transform 1s linear; }
   </style>
 </head>
 <body>
@@ -131,6 +132,17 @@ address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
     <p id="transform-p" class="addr yes">0x3333dddd4444eeee5555ffff6666aaaa7777bbbb</p>
   </section>
 
+  <section>
+    <h2>17 · Node moves, slow transitions, right-edge name forms</h2>
+    <p><button id="move-node">move paragraph to lower box</button>
+       <button id="slow-transform">slow translateY (1s transition)</button></p>
+    <div id="move-a"><p id="move-p" class="addr yes">0x9999000088881111777722223333aaaa4444bbbb</p></div>
+    <div id="move-b" style="margin-top: 260px"></div>
+    <p id="slow-p" class="addr yes">0xabab1212cdcd3434efef5656787890991212abab</p>
+    <p class="no">Right-edge partials must NOT match: foo.eth.com · vitalik.eth-link · éfoo.eth</p>
+    <p>Trailing sentence period is fine: <span class="addr yes">endpunct.eth</span>.</p>
+  </section>
+
   <script>
     // Page's own script tag is skipped by the scanner (SKIP_TAGS).
     const VITALIK = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
@@ -211,6 +223,16 @@ address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
     // Section 16c: transform movement (no layout shift, no DOM change).
     document.getElementById('transform-toggle').addEventListener('click', () => {
       document.getElementById('transform-p').classList.toggle('shifted');
+    });
+
+    // Section 17a: MOVE a connected node (removed+added in one batch).
+    document.getElementById('move-node').addEventListener('click', () => {
+      document.getElementById('move-b').appendChild(document.getElementById('move-p'));
+    });
+
+    // Section 17b: slow transform — completion matters, not just start.
+    document.getElementById('slow-transform').addEventListener('click', () => {
+      document.getElementById('slow-p').classList.toggle('slow-shifted');
     });
   </script>
 </body>

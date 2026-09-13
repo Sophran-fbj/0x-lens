@@ -44,8 +44,9 @@ try {
   // static: 3 (case forms) + 3 (contracts) + 1 (unknown) + 4 (link/code/pre/quote)
   //        + 1 (sec 10) + 1 (sec 11) + 2 (sec 12 href-recovered)
   //        + 2 (sec 13 ENS names) + 2 (sec 14 names) + 1 (sec 15 href query)
-  //        + 1 (sec 16 transform-p) = 21; stress: 150 spans → 171
-  check('initial highlight count = 171', stats.highlights === 171, `got ${stats.highlights}`);
+  //        + 1 (sec 16 transform-p) + 3 (sec 17: move-p, slow-p, endpunct.eth)
+  //        = 24; stress: 150 spans → 174
+  check('initial highlight count = 174', stats.highlights === 174, `got ${stats.highlights}`);
   check('boxes have page-absolute coords', stats.boxes.length > 0 && stats.boxes.every((b) => Number.parseFloat(b.top) > 0));
 
   // href-recovery: both truncated forms resolve to the same href address.
@@ -102,7 +103,7 @@ try {
   const afterAdd = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after dynamic inject = 172', afterAdd === 172, `got ${afterAdd}`);
+  check('highlight after dynamic inject = 175', afterAdd === 175, `got ${afterAdd}`);
 
   // Text mutation (characterData path).
   await page.click('#mutate');
@@ -110,7 +111,7 @@ try {
   const afterMutate = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after text mutation = 173', afterMutate === 173, `got ${afterMutate}`);
+  check('highlight after text mutation = 176', afterMutate === 176, `got ${afterMutate}`);
 
   // Stress button (MO + near-cap path).
   await page.click('#stress-btn');
@@ -118,7 +119,7 @@ try {
   const afterStress = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after +150 stress = 323', afterStress === 323, `got ${afterStress}`);
+  check('highlight after +150 stress = 326', afterStress === 326, `got ${afterStress}`);
 
   // Layout-only shift: style toggle moves the address with ZERO DOM mutation.
   // The highlight must follow (layout-shift PerformanceObserver path).
@@ -212,6 +213,72 @@ try {
       Math.abs(afterTransform - beforeTransform - 120) < 20,
     `Δ=${beforeTransform !== null && afterTransform !== null ? (afterTransform - beforeTransform).toFixed(0) : 'n/a'}px`,
   );
+
+  // SLOW transition (1s): the start-event reposition lands mid-animation —
+  // only transitionend must deliver the final geometry.
+  const SLOW = getAddress('0xabab1212cdcd3434efef5656787890991212abab');
+  const slowTop = () =>
+    page.evaluate(
+      (a) => {
+        const el = document
+          .querySelector('[data-0x-lens-overlay]')
+          .shadowRoot.querySelector(`.hl[data-address="${a}"]`);
+        return el ? el.getBoundingClientRect().top + window.scrollY : null;
+      },
+      SLOW,
+    );
+  const beforeSlow = await slowTop();
+  await page.click('#slow-transform');
+  await page.waitForTimeout(1900); // 1s transition + end event + 300ms debounce
+  const afterSlow = await slowTop();
+  check(
+    'slow transition final position tracked (transitionend)',
+    beforeSlow !== null && afterSlow !== null && Math.abs(afterSlow - beforeSlow - 120) < 20,
+    `Δ=${beforeSlow !== null && afterSlow !== null ? (afterSlow - beforeSlow).toFixed(0) : 'n/a'}px`,
+  );
+
+  // Node MOVE while staying connected: exactly one highlight, box follows.
+  const MOVE = getAddress('0x9999000088881111777722223333aaaa4444bbbb');
+  const moveState = () =>
+    page.evaluate(
+      (a) => {
+        const els = [
+          ...document
+            .querySelector('[data-0x-lens-overlay]')
+            .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`),
+        ];
+        return {
+          count: els.length,
+          top: els[0] ? els[0].getBoundingClientRect().top + window.scrollY : null,
+        };
+      },
+      MOVE,
+    );
+  const beforeMove = await moveState();
+  await page.click('#move-node');
+  await page.waitForTimeout(800);
+  const afterMove = await moveState();
+  check(
+    'moved node keeps exactly one highlight (no leak)',
+    beforeMove.count === 1 && afterMove.count === 1,
+    `count ${beforeMove.count} → ${afterMove.count}`,
+  );
+  check(
+    'moved node highlight follows to new position',
+    afterMove.top !== null && beforeMove.top !== null && afterMove.top - beforeMove.top > 200,
+    `Δ=${beforeMove.top !== null && afterMove.top !== null ? (afterMove.top - beforeMove.top).toFixed(0) : 'n/a'}px`,
+  );
+
+  // Right-edge name forms: partials never match; sentence period does.
+  check(
+    'foo.eth.com / éfoo.eth never match',
+    (await nameCount('foo.eth')) === 0 && (await nameCount('foo.eth.com')) === 0,
+  );
+  check(
+    'vitalik.eth-link adds no match',
+    (await nameCount('vitalik.eth')) === 1, // still only section 13's own
+  );
+  check('trailing-period name matches', (await nameCount('endpunct.eth')) === 1);
 
   // Scroll invariance: page-absolute coords mean no listeners; just sanity-check a box
   // still covers its address after scrolling.

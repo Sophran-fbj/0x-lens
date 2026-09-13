@@ -263,8 +263,18 @@ export class LensScanner {
     });
 
     // CSS transitions/animations (transform slides, keyframe accordions)
-    // produce no attribute mutations at all — but their events do.
-    for (const ev of ['transitionrun', 'animationstart', 'animationend']) {
+    // produce no attribute mutations at all — but their events do. The
+    // *end/cancel* events matter most: a debounced reposition triggered by
+    // the start event lands mid-animation for anything longer than the
+    // debounce; only the completion event guarantees the final geometry.
+    for (const ev of [
+      'transitionrun',
+      'transitionend',
+      'transitioncancel',
+      'animationstart',
+      'animationend',
+      'animationcancel',
+    ]) {
       window.addEventListener(ev, this.scheduleReposition, { capture: true, passive: true });
     }
   }
@@ -321,15 +331,18 @@ export class LensScanner {
       for (const n of walkTextNodes(a)) this.invalidate(n);
     }
 
-    // 3. Scan added subtrees (WeakSet dedups overlap with previous scans).
+    // 3. Scan added subtrees. invalidate (not bare scanNode): a subtree can
+    //    be MOVED while staying connected — the prune sweep above won't have
+    //    touched it, so its old entries must be released here or the old
+    //    highlight boxes leak (duplicate boxes + liveMatches double-count).
     const roots = this.pendingRoots;
     this.pendingRoots = [];
     for (const root of roots) {
       if (!root.isConnected) continue;
       if (root.nodeType === Node.TEXT_NODE) {
-        this.scanNode(root as Text);
+        this.invalidate(root as Text);
       } else {
-        for (const n of walkTextNodes(root)) this.scanNode(n);
+        for (const n of walkTextNodes(root)) this.invalidate(n);
       }
     }
 
