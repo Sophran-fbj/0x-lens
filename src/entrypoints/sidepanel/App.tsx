@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { storage } from 'wxt/utils/storage';
-import type { Address } from '@/core/address';
 import { requestProfile } from '@/core/messaging/client';
-import type { AddressProfile } from '@/core/messaging/protocol';
+import type { AddressProfile, LensIdentity } from '@/core/messaging/protocol';
 import { ERROR_COPY, toErrorCode, type LensErrorCode } from '@/core/errors';
-import { formatEth } from '@/core/format';
+import { formatEth, shortenAddress } from '@/core/format';
 import { Identicon } from '@/components/hover-card/Identicon';
 
 /**
@@ -14,23 +13,24 @@ import { Identicon } from '@/components/hover-card/Identicon';
  */
 
 export default function App() {
-  const [address, setAddress] = useState<Address | null>(null);
+  const [identity, setIdentity] = useState<LensIdentity | null>(null);
   const [profile, setProfile] = useState<AddressProfile | null>(null);
   const [error, setError] = useState<LensErrorCode | null>(null);
   const [copied, setCopied] = useState(false);
   const [, tick] = useState(0);
+  const isName = !!identity && !identity.startsWith('0x');
 
   // Focus handoff: initial read + live watch.
   useEffect(() => {
-    const item = storage.defineItem<Address | null>('session:lens:focus', { fallback: null });
-    void item.getValue().then(setAddress);
-    const unwatch = item.watch((next) => setAddress(next));
+    const item = storage.defineItem<LensIdentity | null>('session:lens:focus', { fallback: null });
+    void item.getValue().then(setIdentity);
+    const unwatch = item.watch((next) => setIdentity(next));
     return unwatch;
   }, []);
 
   // Resolve through the same message path as the hover card.
   useEffect(() => {
-    if (!address) {
+    if (!identity) {
       setProfile(null);
       setError(null);
       return;
@@ -38,7 +38,7 @@ export default function App() {
     let alive = true;
     setProfile(null);
     setError(null);
-    requestProfile(address)
+    requestProfile(identity)
       .then((res) => {
         if (!alive) return;
         if (res.ok) setProfile(res.profile);
@@ -50,7 +50,7 @@ export default function App() {
     return () => {
       alive = false;
     };
-  }, [address]);
+  }, [identity]);
 
   // Keep "scanned …s ago" fresh without re-fetching.
   useEffect(() => {
@@ -59,9 +59,9 @@ export default function App() {
   }, []);
 
   const copy = async (): Promise<void> => {
-    if (!address) return;
+    if (!identity) return;
     try {
-      await navigator.clipboard.writeText(address);
+      await navigator.clipboard.writeText(identity.startsWith('0x') ? identity : (profile?.address ?? identity));
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     } catch {
@@ -71,18 +71,18 @@ export default function App() {
 
   return (
     <main className="flex h-screen flex-col font-mono text-[12px] text-lens-text">
-      {!address ? (
+      {!identity ? (
         <EmptyPanel />
       ) : (
         <>
           <header className="flex items-center gap-3 border-b border-lens-border px-4 py-4">
-            <Identicon address={address} size={40} />
+            <Identicon seed={profile?.address ?? identity} size={40} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-semibold">
-                {profile?.ensName ?? 'Unknown account'}
+                {isName ? identity : (profile?.ensName ?? 'Unknown account')}
               </div>
               <div className="mt-0.5 break-all text-[10px] leading-relaxed text-lens-dim">
-                {address}
+                {profile ? profile.address : shortenAddress(identity)}
               </div>
             </div>
             <button
@@ -95,7 +95,12 @@ export default function App() {
             </button>
           </header>
 
-          {error ? (
+          {error === 'NAME_NOT_FOUND' ? (
+            <section className="px-4 py-6 text-[10px] tracking-[0.12em] text-lens-dim">
+              UNREGISTERED NAME
+              <div className="mt-2 normal-case tracking-normal">no such name on mainnet</div>
+            </section>
+          ) : error ? (
             <section className="px-4 py-6 text-[10px] tracking-[0.12em] text-red-400">
               {ERROR_COPY[error] ?? 'Lookup failed'}
               <div className="mt-2 normal-case tracking-normal text-lens-dim">{error}</div>
@@ -127,7 +132,7 @@ export default function App() {
 
           <footer className="mt-auto border-t border-lens-border px-4 py-3">
             <a
-              href={`https://etherscan.io/address/${address}`}
+              href={`https://etherscan.io/address/${profile?.address ?? identity}`}
               target="_blank"
               rel="noreferrer"
               className="block rounded border border-lens-accent-dim bg-lens-accent/5 py-2 text-center text-[10px] tracking-[0.2em] text-lens-accent transition-colors hover:bg-lens-accent/15"

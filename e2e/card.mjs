@@ -50,9 +50,20 @@ try {
       const root = document.querySelector('[data-0x-lens-overlay]')?.shadowRoot;
       const hl = root?.querySelector(`.hl[data-address="${a}"]`);
       if (!hl) return null;
+      hl.scrollIntoView({ block: 'center' }); // targets can live below the fold
       const b = hl.getBoundingClientRect();
       return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
     }, address);
+
+  const hoverName = (name) =>
+    page.evaluate((n) => {
+      const root = document.querySelector('[data-0x-lens-overlay]')?.shadowRoot;
+      const hl = root?.querySelector(`.hl[data-name="${n}"]`);
+      if (!hl) return null;
+      hl.scrollIntoView({ block: 'center' });
+      const b = hl.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }, name);
 
   const cardText = () =>
     page.evaluate(() => {
@@ -67,6 +78,13 @@ try {
           ?.textContent ?? null,
     );
 
+  const cardTextSafe = (pg) =>
+    pg.evaluate(
+      () =>
+        document.querySelector('[data-0x-lens-card]')?.shadowRoot?.querySelector('.oxl-card')
+          ?.textContent ?? null,
+    );
+
   const waitCardGone = () =>
     page.waitForFunction(
       () => !document.querySelector('[data-0x-lens-card]')?.shadowRoot?.querySelector('.oxl-card'),
@@ -77,7 +95,14 @@ try {
   const hover = async (address) => {
     const c = await hoverAddress(address);
     if (!c) throw new Error(`no highlight found for ${address}`);
-    await page.mouse.move(c.x, c.y);
+    await page.waitForTimeout(250); // let scroll-settling settle (also closes any open card)
+    await page.mouse.move(c.x, c.y, { steps: 5 });
+  };
+  const hoverEns = async (name) => {
+    const c = await hoverName(name);
+    if (!c) throw new Error(`no name highlight found for ${name}`);
+    await page.waitForTimeout(250);
+    await page.mouse.move(c.x, c.y, { steps: 5 });
   };
 
   const moveAway = async () => {
@@ -128,6 +153,34 @@ try {
     { timeout: 20000, polling: 100 },
   );
   check('unknown address → NO ON-CHAIN FOOTPRINT', true);
+
+  // 3b. ENS forward lookup: hover a NAME in prose → resolves to the account.
+  await moveAway();
+  await hoverEns('vitalik.eth');
+  await page.waitForFunction(
+    (needle) =>
+      document.querySelector('[data-0x-lens-card]')?.shadowRoot?.querySelector('.oxl-card')
+        ?.textContent.includes(needle) ?? false,
+    '0xd8dA',
+    { timeout: 20000, polling: 100 },
+  );
+  const nameCardText = await cardTextSafe(page);
+  check(
+    'vitalik.eth forward-resolves (name → address pipeline)',
+    /BALANCE/.test(nameCardText ?? '') && /ETH/.test(nameCardText ?? ''),
+  );
+
+  // 3c. unregistered name → dedicated empty state
+  await moveAway();
+  await hoverEns('unregistered-name-9x7.eth');
+  await page.waitForFunction(
+    (needle) =>
+      document.querySelector('[data-0x-lens-card]')?.shadowRoot?.querySelector('.oxl-card')
+        ?.textContent.includes(needle) ?? false,
+    'UNREGISTERED NAME',
+    { timeout: 20000, polling: 100 },
+  );
+  check('unregistered name → UNREGISTERED NAME', true);
 
   // 4. second hover on vitalik — fast path (no scan ceremony)
   await moveAway();

@@ -1,15 +1,14 @@
-import type { Address } from '@/core/address';
-
 /**
  * Tiny external store bridging the (non-React) hover controller and the
  * (React) card layer. One card at a time, page lifetime.
  */
 
 export interface CardTarget {
-  address: Address;
+  /** Checksummed address or lowercase ENS name. */
+  identity: string;
   /** Viewport rect of the hovered highlight box at trigger time. */
   anchorRect: DOMRect;
-  /** True when the acquire animation was already played for this address on
+  /** True when the acquire animation was already played for this identity on
    *  this page — the card then opens instantly ("already scanned"语义). */
   fast: boolean;
 }
@@ -46,7 +45,7 @@ class CardStore {
 
 export const cardStore = new CardStore();
 
-/** Addresses already resolved on this page — drives the fast re-hover path. */
+/** Identities already resolved on this page — drives the fast re-hover path. */
 export const resolvedAddresses = new Set<string>();
 
 export const INTENT_MS = 200;

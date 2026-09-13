@@ -33,9 +33,13 @@ export interface AddressProfile {
   fetchedAt: number;
 }
 
+/** Identity = checksummed address ("0x…") or lowercase ENS name ("…​.eth").
+ *  The background routes to the address pipeline or the ENS forward lookup. */
+export type LensIdentity = string;
+
 export type LensMessage =
-  | { type: 'lens/resolve'; address: Address }
-  | { type: 'lens/openPanel'; address: Address };
+  | { type: 'lens/resolve'; identity: LensIdentity }
+  | { type: 'lens/openPanel'; identity: LensIdentity };
 
 export type LensResponse =
   | { ok: true; profile: AddressProfile }

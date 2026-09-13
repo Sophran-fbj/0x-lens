@@ -1,5 +1,3 @@
-import type { Address } from '../address';
-
 /**
  * Zero-mutation highlight layer.
  *
@@ -90,10 +88,11 @@ export class OverlayLayer {
     return this.layer;
   }
 
-  alloc(address: Address): HTMLDivElement {
+  alloc(identity: string, kind: 'address' | 'name'): HTMLDivElement {
     const el = document.createElement('div');
     el.className = 'hl';
-    el.dataset.address = address;
+    if (kind === 'address') el.dataset.address = identity;
+    else el.dataset.name = identity;
     this.layer.append(el);
     return el;
   }

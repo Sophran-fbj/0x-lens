@@ -1,7 +1,7 @@
-import { ETH_ADDRESS_RE } from '../address';
+import { ENS_NAME_RE, ETH_ADDRESS_RE, TRUNCATED_ADDRESS_RE } from '../address';
 
 /**
- * Text-node traversal for address detection. Read-only: this module never
+ * Text-node traversal for identity detection. Read-only: this module never
  * mutates the host page's DOM.
  */
 
@@ -50,8 +50,8 @@ export function* walkTextNodes(root: Node): Generator<Text> {
           : NodeFilter.FILTER_SKIP;
       }
       const text = node as Text;
-      // Cheapest pre-filter: a match needs at least `0x` + 40 chars.
-      if ((text.nodeValue?.length ?? 0) < 42) return NodeFilter.FILTER_REJECT;
+      // Cheapest pre-filter: the shortest candidate ("a.eth") is 6 chars.
+      if ((text.nodeValue?.length ?? 0) < 6) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
     },
   });
@@ -63,25 +63,44 @@ export function* walkTextNodes(root: Node): Generator<Text> {
   }
 }
 
-export interface RawMatch {
+export type CandidateKind = 'address' | 'truncated' | 'name';
+
+export interface RawCandidate {
   node: Text;
   start: number;
   end: number;
+  kind: CandidateKind;
   raw: string;
 }
 
-/** Find all candidate address substrings within one text node. */
-export function scanTextNode(node: Text): RawMatch[] {
+/** Find all identity-shaped substrings within one text node.
+ *  Validation beyond shape (EIP-55, href recovery, ENS label rules) happens
+ *  in the scanner, which can see the DOM context. */
+export function scanTextNode(node: Text): RawCandidate[] {
   const text = node.nodeValue ?? '';
-  if (text.length < 42) return [];
+  if (text.length < 6) return [];
   const parent = node.parentElement;
   if (parent && isExcludedElement(parent)) return [];
 
-  const out: RawMatch[] = [];
-  // matchAll works on a cloned regex internally — no lastIndex leakage.
+  const out: RawCandidate[] = [];
   for (const m of text.matchAll(ETH_ADDRESS_RE)) {
     if (m.index === undefined) continue;
-    out.push({ node, start: m.index, end: m.index + m[0].length, raw: m[0] });
+    out.push({ node, start: m.index, end: m.index + m[0].length, kind: 'address', raw: m[0] });
   }
-  return out;
+  for (const m of text.matchAll(TRUNCATED_ADDRESS_RE)) {
+    if (m.index === undefined) continue;
+    out.push({
+      node,
+      start: m.index,
+      end: m.index + m[0].length,
+      kind: 'truncated',
+      raw: m[0],
+    });
+  }
+  for (const m of text.matchAll(ENS_NAME_RE)) {
+    if (m.index === undefined) continue;
+    out.push({ node, start: m.index, end: m.index + m[0].length, kind: 'name', raw: m[0] });
+  }
+  // Stable order by position so entry grouping is deterministic.
+  return out.sort((a, b) => a.start - b.start);
 }

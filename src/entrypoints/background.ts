@@ -1,13 +1,12 @@
 import { browser } from 'wxt/browser';
 import { storage } from 'wxt/utils/storage';
-import type { Address } from '@/core/address';
 import { redactError, toErrorCode } from '@/core/errors';
 import type { LensMessage, LensResponse, OpenPanelResponse } from '@/core/messaging/protocol';
-import { resolveProfile } from '@/core/services/resolve';
+import { resolveIdentity } from '@/core/services/resolve';
 
-async function handleResolve(address: Address): Promise<LensResponse> {
+async function handleResolve(identity: string): Promise<LensResponse> {
   try {
-    const profile = await resolveProfile(address);
+    const profile = await resolveIdentity(identity);
     return { ok: true, profile };
   } catch (err) {
     // Raw messages can embed the RPC URL (API keys in path) and the card
@@ -30,7 +29,7 @@ function handleMessage(
 ): boolean {
   const message = msg as LensMessage;
   if (message?.type === 'lens/resolve') {
-    handleResolve(message.address).then(sendResponse);
+    handleResolve(message.identity).then(sendResponse);
     return true; // keep the channel open for the async response
   }
   if (message?.type === 'lens/openPanel') {
@@ -46,9 +45,9 @@ function handleMessage(
         .catch((err) => console.error('[0x Lens] sidePanel.open failed:', err));
     }
 
-    // Hand the focused address to the panel via storage — robust across SW
+    // Hand the focused identity to the panel via storage — robust across SW
     // restarts and panel (re)loads; the panel watches this key.
-    void storage.setItem('session:lens:focus', message.address).catch(() => {});
+    void storage.setItem('session:lens:focus', message.identity).catch(() => {});
     sendResponse({ ok: true });
     return false;
   }

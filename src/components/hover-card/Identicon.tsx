@@ -1,19 +1,17 @@
-import type { Address } from '@/core/address';
-
 /** Deterministic gradient identicon — no network, no avatar dependency.
- *  FNV-1a over the lowercase hex picks two hues. */
+ *  FNV-1a over the seed (address or ENS name, lowercased) picks two hues. */
 
-function huePair(address: string): [number, number] {
+function huePair(seed: string): [number, number] {
   let h = 0x811c9dc5;
-  for (let i = 2; i < address.length; i++) {
-    h ^= address.charCodeAt(i);
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
     h = Math.imul(h, 0x01000193) >>> 0;
   }
   return [h % 360, (h >>> 9) % 360];
 }
 
-export function Identicon({ address, size = 34 }: { address: Address; size?: number }) {
-  const [h1, h2] = huePair(address.toLowerCase());
+export function Identicon({ seed, size = 34 }: { seed: string; size?: number }) {
+  const [h1, h2] = huePair(seed.toLowerCase());
   return (
     <div
       style={{

@@ -57,7 +57,7 @@ export function CardLayer() {
       <AnimatePresence>
         {target && (
           <motion.div
-            key={target.address}
+            key={target.identity}
             ref={ref}
             initial={{ opacity: 0, y: 6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

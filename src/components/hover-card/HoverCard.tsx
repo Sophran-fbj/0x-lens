@@ -22,17 +22,18 @@ const rowVariants = {
 export function HoverCard({ target }: { target: CardTarget }) {
   const [profile, setProfile] = useState<AddressProfile | null>(null);
   const [error, setError] = useState<LensErrorCode | null>(null);
+  const isName = !target.identity.startsWith('0x');
 
   useEffect(() => {
     let alive = true;
     setProfile(null);
     setError(null);
-    requestProfile(target.address)
+    requestProfile(target.identity)
       .then((res) => {
         if (!alive) return;
         if (res.ok) {
           setProfile(res.profile);
-          resolvedAddresses.add(target.address);
+          resolvedAddresses.add(target.identity);
         } else {
           setError(res.error);
         }
@@ -43,23 +44,32 @@ export function HoverCard({ target }: { target: CardTarget }) {
     return () => {
       alive = false;
     };
-  }, [target.address]);
+  }, [target.identity]);
 
   // Slow path: rows stagger in from hidden. Fast (already-scanned) path:
   // render them immediately — no repeated ceremony.
   const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.045 } } };
 
+  // Header: names show themselves; addresses show ENS or the truncation.
+  const displayName = isName ? target.identity : (profile?.ensName ?? shortenAddress(target.identity));
+
   return (
     <div className="oxl-card" role="tooltip">
       <div className="oxl-head">
-        <Identicon address={target.address} />
+        <Identicon seed={profile?.address ?? target.identity} />
         <div style={{ minWidth: 0 }}>
-          <div className="oxl-name">{profile?.ensName ?? shortenAddress(target.address)}</div>
-          <div className="oxl-sub">{shortenAddress(target.address)}</div>
+          <div className="oxl-name">{displayName}</div>
+          <div className="oxl-sub">{profile ? shortenAddress(profile.address) : 'resolving…'}</div>
         </div>
       </div>
 
-      {error ? (
+      {error === 'NAME_NOT_FOUND' ? (
+        <div className="oxl-empty">
+          UNREGISTERED NAME
+          <span className="oxl-scan-dim" />
+          no such name on mainnet
+        </div>
+      ) : error ? (
         <div className="oxl-empty">
           {ERROR_COPY[error] ?? 'Lookup failed'}
           <span className="oxl-scan-dim" />
@@ -122,7 +132,7 @@ export function HoverCard({ target }: { target: CardTarget }) {
         type="button"
         className="oxl-open"
         onClick={() => {
-          openLens(target.address);
+          openLens(target.identity);
           cardStore.hide();
         }}
       >
@@ -138,10 +148,5 @@ function typeLabel(p: AddressProfile): string {
 }
 
 function isEmptyProfile(p: AddressProfile): boolean {
-  return (
-    !p.isContract &&
-    !p.ensName &&
-    p.ethBalanceWei === '0' &&
-    !p.tokenMetadata
-  );
+  return !p.isContract && !p.ensName && p.ethBalanceWei === '0' && !p.tokenMetadata;
 }

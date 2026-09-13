@@ -1,4 +1,3 @@
-import type { Address } from '../address';
 import { openLens } from '@/core/messaging/client';
 import { cardStore, CLOSE_GRACE_MS, INTENT_MS, resolvedAddresses, SCAN_MS } from '@/components/hover-card/store';
 import type { OverlayLayer } from '../scanner/overlay';
@@ -38,7 +37,7 @@ export class HoverController {
 
   private readonly onOver = (e: MouseEvent): void => {
     const hl = closestHl(e.target);
-    if (!hl?.dataset.address) return;
+    if (!hl || !(hl.dataset.address ?? hl.dataset.name)) return;
     this.cancelHide();
     if (this.activeHl === hl) return; // card already up for this box
     this.clearIntent();
@@ -60,13 +59,13 @@ export class HoverController {
     this.hideNow();
   };
 
-  /** Clicking a highlighted address opens the side panel focused on it.
+  /** Clicking a highlighted identity opens the side panel focused on it.
    *  GESTURE RULE: the message goes out as the first statement. */
   private readonly onClick = (e: MouseEvent): void => {
     const hl = closestHl(e.target);
-    const address = hl?.dataset.address;
-    if (!address) return;
-    openLens(address as Address);
+    const identity = hl?.dataset.address ?? hl?.dataset.name;
+    if (!identity) return;
+    openLens(identity);
     this.hideNow();
   };
 
@@ -86,16 +85,18 @@ export class HoverController {
   };
 
   private trigger(hl: HTMLDivElement): void {
-    const address = hl.dataset.address as Address;
+    // dataset.address for addresses, dataset.name for ENS names.
+    const identity = hl.dataset.address ?? hl.dataset.name;
+    if (!identity) return;
     const anchorRect = hl.getBoundingClientRect();
     this.activeHl = hl;
 
     const show = (): void => {
       this.cleanupScan();
-      cardStore.show({ address, anchorRect, fast: resolvedAddresses.has(address) });
+      cardStore.show({ identity, anchorRect, fast: resolvedAddresses.has(identity) });
     };
 
-    if (this.reduced || resolvedAddresses.has(address)) {
+    if (this.reduced || resolvedAddresses.has(identity)) {
       show();
       return;
     }

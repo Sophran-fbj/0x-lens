@@ -1,6 +1,12 @@
-import { parseAddress, type Address } from '../address';
+import {
+  parseAddress,
+  parseEnsName,
+  parseTruncatedCandidate,
+  recoverFromHref,
+  type Address,
+} from '../address';
 import { OverlayLayer } from './overlay';
-import { scanTextNode, walkTextNodes, type RawMatch } from './walker';
+import { scanTextNode, walkTextNodes, type CandidateKind } from './walker';
 
 /**
  * LensScanner — detection orchestration.
@@ -17,7 +23,10 @@ import { scanTextNode, walkTextNodes, type RawMatch } from './walker';
  */
 
 interface MatchEntry {
-  address: Address;
+  /** Checksummed address, or lowercase ENS name — the identity to resolve. */
+  identity: string;
+  /** 'truncated' candidates are resolved to addresses at scan time. */
+  kind: Exclude<CandidateKind, 'truncated'>;
   node: Text;
   start: number;
   end: number;
@@ -118,10 +127,27 @@ export class LensScanner {
     if (this.processed.has(node) || !node.isConnected) return;
     this.processed.add(node);
 
-    const valid: Array<RawMatch & { address: Address }> = [];
-    for (const r of scanTextNode(node)) {
-      const address = parseAddress(r.raw);
-      if (address) valid.push({ ...r, address });
+    const valid: Array<{
+      identity: string;
+      kind: Exclude<CandidateKind, 'truncated'>;
+      start: number;
+      end: number;
+    }> = [];
+    for (const c of scanTextNode(node)) {
+      if (c.kind === 'address') {
+        const address = parseAddress(c.raw);
+        if (address) valid.push({ identity: address, kind: 'address', start: c.start, end: c.end });
+      } else if (c.kind === 'truncated') {
+        // The full address is not in the text — recover it from the nearest
+        // ancestor link's href (prefix/suffix must match the visible text).
+        const cand = parseTruncatedCandidate(c.raw);
+        const href = node.parentElement?.closest('a')?.getAttribute('href') ?? null;
+        const address = cand ? recoverFromHref(href, cand) : null;
+        if (address) valid.push({ identity: address, kind: 'address', start: c.start, end: c.end });
+      } else {
+        const name = parseEnsName(c.raw);
+        if (name) valid.push({ identity: name, kind: 'name', start: c.start, end: c.end });
+      }
     }
     if (valid.length === 0) return;
 
@@ -137,7 +163,8 @@ export class LensScanner {
         break;
       }
       const entry: MatchEntry = {
-        address: v.address,
+        identity: v.identity,
+        kind: v.kind,
         node,
         start: v.start,
         end: v.end,
@@ -178,7 +205,9 @@ export class LensScanner {
     }
     // Sync box count to the (possibly changed) rect count, then update.
     while (entry.els.length > rects.length) this.overlay.release(entry.els.pop()!);
-    while (entry.els.length < rects.length) entry.els.push(this.overlay.alloc(entry.address));
+    while (entry.els.length < rects.length) {
+      entry.els.push(this.overlay.alloc(entry.identity, entry.kind));
+    }
     for (let i = 0; i < rects.length; i++) {
       this.overlay.place(entry.els[i]!, rects[i]!);
     }

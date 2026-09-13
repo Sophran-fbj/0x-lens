@@ -1,6 +1,6 @@
 # 0x Lens
 
-> Hover any Ethereum address on the web to reveal its onchain identity.
+> Hover any Ethereum address or ENS name on the web to reveal its onchain identity.
 
 Chrome extension · Manifest V3 · Ethereum mainnet.
 
@@ -11,6 +11,10 @@ it: it lights up, a scan line sweeps across it — *the scan is the loading
 state* — and an identity card unfolds: ENS, ETH balance, EOA / contract /
 token, and (since Pectra) EIP-7702 delegation. Click to open the Side Panel
 for the full readout.
+
+Both directions of chain identity are readable: hex addresses (including
+truncated `0x1234…abcd` display forms, recovered from their link href) and
+ENS names (`vitalik.eth` in prose resolves forward to the account).
 
 ![panel demo](docs/panel.gif)
 
@@ -41,9 +45,14 @@ for the full readout.
 | Empty state | zero-balance, nameless, contractless → *NO ON-CHAIN FOOTPRINT* |
 
 Detection: `/\b0x[a-fA-F0-9]{40}\b/g` with EIP-55 checksum enforcement for
-mixed-case strings (all-lower/upper accepted). Known honest misses: truncated
-`0x1234…abcd` forms, and old tokens whose `name()` returns `bytes32` (MKR)
-degrade to plain CONTRACT.
+mixed-case strings (all-lower/upper accepted). Truncated display forms
+(`0x1234…abcd`) are recovered from their nearest link's `href` — the recovered
+address must pass checksum AND match the visible prefix/suffix. ENS names
+(ASCII labels + `.eth`, email domains excluded) resolve forward via the
+universal resolver; unregistered names show a dedicated empty state. Known
+honest misses: truncated text outside links, old tokens whose `name()`
+returns `bytes32` (MKR → plain CONTRACT), and names on offchain CCIP-Read
+resolvers (disabled for the single-origin privacy guarantee).
 
 ## Measured numbers
 
@@ -51,9 +60,9 @@ Scanning (real pages, initial scan, idle-chunked off the critical path):
 
 | Page | Text nodes | Highlights | Scan time |
 |---|---|---|---|
-| Test rig (150+ address stress) | 166 | 161 | ~300 ms |
-| etherscan.io token page | 492 | 0 (visible addresses are truncated; full ones live in `<script>` payloads, deliberately never scanned) | 13 ms |
-| Wikipedia · Ethereum | 304 | 0 | 90 ms |
+| Test rig (167 identities incl. stress) | 204 | 167 | ~615 ms |
+| etherscan.io token page | 2104 | 1 truncated row recovered via href (visible addresses are truncated; full ones live in `<script>` payloads, deliberately never scanned) | 52 ms |
+| Wikipedia · Ethereum | 1977 | 0 | 17 ms |
 
 Hover → data: first hover ≈ 1.7–2.3 s end-to-end (includes the 550 ms
 acquire animation + one RPC round trip to a public endpoint); re-hover of a
@@ -121,9 +130,9 @@ Tip: persistent browser profiles cache old service workers — delete
 
 ## Roadmap (V2 ideas, deliberately not built)
 
-ENS forward resolution for `.eth` names · truncated-address recovery via
-ancestor `href` · multi-chain (Base/Arbitrum) · viewport-bounded prefetch ·
-USD pricing · per-site enablement UX · keyboard access for highlights.
+Multi-chain (Base/Arbitrum) · viewport-bounded prefetch · USD pricing ·
+per-site enablement UX · keyboard access for highlights · unicode/emoji ENS
+names (ENSIP-15 normalization).
 
 ## License
 

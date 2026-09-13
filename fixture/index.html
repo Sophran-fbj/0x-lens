@@ -27,7 +27,7 @@
   </p>
 
   <section>
-    <h2>1 · Rich EOA — vitalik.eth (3 case forms, all valid)</h2>
+    <h2>1 · Rich EOA — vitalik (3 case forms, all valid)</h2>
     <p class="addr yes">0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045</p>
     <p class="addr yes">0xd8da6bf26964af9d7eed9e03e53415d37aa96045</p>
     <p class="addr yes">0xD8DA6BF26964AF9D7EED9E03E53415D37AA96045</p>
@@ -51,7 +51,7 @@
   </section>
 
   <section>
-    <h2>5 · Truncated forms (must NOT highlight — V1.5 href heuristic)</h2>
+    <h2>5 · Truncated forms OUTSIDE links (must NOT highlight)</h2>
     <p class="addr no">0xd8dA…6045 &nbsp;/&nbsp; 0xd8dA...6045</p>
   </section>
 
@@ -93,6 +93,19 @@ address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
     <h2>11 · Remove &amp; re-insert the same text node</h2>
     <p><button id="detach">detach → re-attach</button> (click twice)</p>
     <p id="detach-target" class="addr yes">0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2</p>
+  </section>
+
+  <section>
+    <h2>12 · Truncated inside links — full address recovered from href</h2>
+    <p class="yes"><a href="https://etherscan.io/address/0x1111aaaa2222bbbb3333cccc4444dddd55558888">0x1111…8888</a></p>
+    <p class="yes"><a href="https://etherscan.io/address/0x1111aaaa2222bbbb3333cccc4444dddd55558888">0x1111aaaa...55558888</a></p>
+    <p class="no"><a href="https://etherscan.io/address/0xd8da6bf26964af9d7eed9e03e53415d37aa96045">0x1111…9999</a> (href mismatch)</p>
+  </section>
+
+  <section>
+    <h2>13 · ENS names in prose (forward lookup)</h2>
+    <p>The founder's name: <span class="addr yes">vitalik.eth</span> — resolvable on hover.</p>
+    <p class="no">unregistered-name-9x7.eth should show the empty state, and mail at user@foo.eth must NOT highlight.</p>
   </section>
 
   <script>

@@ -5,6 +5,7 @@
  * Run AFTER `npm run build` and with the fixture server up (`npm run fixture`):
  *   node e2e/verify.mjs
  */
+import { getAddress } from 'viem';
 import { EXT_PATH, launchExtension } from './browser.mjs';
 
 const FIXTURE = 'http://localhost:5173/';
@@ -41,9 +42,34 @@ try {
 
   check('overlay host attached', stats.overlayHost);
   // static: 3 (case forms) + 3 (contracts) + 1 (unknown) + 4 (link/code/pre/quote)
-  //        + 1 (section 10) + 1 (section 11) = 13; stress: 150 spans → 163
-  check('initial highlight count = 163', stats.highlights === 163, `got ${stats.highlights}`);
+  //        + 1 (sec 10) + 1 (sec 11) + 2 (sec 12 href-recovered)
+  //        + 2 (sec 13 ENS names) = 17; stress: 150 spans → 167
+  check('initial highlight count = 167', stats.highlights === 167, `got ${stats.highlights}`);
   check('boxes have page-absolute coords', stats.boxes.length > 0 && stats.boxes.every((b) => Number.parseFloat(b.top) > 0));
+
+  // href-recovery: both truncated forms resolve to the same href address.
+  const RECOVERED = getAddress('0x1111aaaa2222bbbb3333cccc4444dddd55558888');
+  const recoveredCount = await page.evaluate(
+    (a) =>
+      document
+        .querySelector('[data-0x-lens-overlay]')
+        .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`).length,
+    RECOVERED,
+  );
+  check('truncated-in-link recovered from href ×2', recoveredCount === 2, `got ${recoveredCount}`);
+
+  // ENS names: two name highlights; the email domain must NOT light up.
+  const nameCount = (n) =>
+    page.evaluate(
+      (name) =>
+        document
+          .querySelector('[data-0x-lens-overlay]')
+          .shadowRoot.querySelectorAll(`.hl[data-name="${name}"]`).length,
+      n,
+    );
+  check('vitalik.eth highlighted', (await nameCount('vitalik.eth')) === 1);
+  check('unregistered name highlighted', (await nameCount('unregistered-name-9x7.eth')) === 1);
+  check('email domain not highlighted', (await nameCount('foo.eth')) === 0);
 
   // Negative cases: broken checksum / truncated / tx hash must NOT be inside the overlay.
   // (They can't be — overlay only contains valid matches — so count correctness above covers it.)
@@ -54,7 +80,7 @@ try {
   const afterAdd = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after dynamic inject = 164', afterAdd === 164, `got ${afterAdd}`);
+  check('highlight after dynamic inject = 168', afterAdd === 168, `got ${afterAdd}`);
 
   // Text mutation (characterData path).
   await page.click('#mutate');
@@ -62,7 +88,7 @@ try {
   const afterMutate = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after text mutation = 165', afterMutate === 165, `got ${afterMutate}`);
+  check('highlight after text mutation = 169', afterMutate === 169, `got ${afterMutate}`);
 
   // Stress button (MO + near-cap path).
   await page.click('#stress-btn');
@@ -70,7 +96,7 @@ try {
   const afterStress = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after +150 stress = 315', afterStress === 315, `got ${afterStress}`);
+  check('highlight after +150 stress = 319', afterStress === 319, `got ${afterStress}`);
 
   // Layout-only shift: style toggle moves the address with ZERO DOM mutation.
   // The highlight must follow (layout-shift PerformanceObserver path).
