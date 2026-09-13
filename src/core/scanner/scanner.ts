@@ -126,8 +126,16 @@ export class LensScanner {
 
   // ---- scanning -----------------------------------------------------------
 
+  /** Scope test. NOT isConnected: a node moved into a same-document shadow
+   *  tree is still "connected", but our body-rooted observer cannot see
+   *  inside shadow trees — anything body.contains() doesn't reach is out of
+   *  scope and must not be scanned, tracked, or kept. */
+  private inScope(node: Node): boolean {
+    return document.body.contains(node);
+  }
+
   private scanNode(node: Text): void {
-    if (this.processed.has(node) || !node.isConnected) return;
+    if (this.processed.has(node) || !this.inScope(node)) return;
     this.processed.add(node);
 
     const valid: Array<{
@@ -306,11 +314,12 @@ export class LensScanner {
   };
 
   private flush(): void {
-    // 1. Prune matches whose text node left the DOM (SPA re-renders). Also
-    //    clear `processed` — virtual lists re-insert the SAME node later,
-    //    and it must rescan then (found by review: 1 → 0 → 0 was permanent).
+    // 1. Prune matches whose text node left the scan scope — detached OR
+    //    moved into a shadow tree (still "connected" but invisible to our
+    //    body observer). Also clear `processed`: virtual lists re-insert the
+    //    SAME node later, and it must rescan then.
     for (const [node, entries] of this.nodeMatches) {
-      if (!node.isConnected) {
+      if (!this.inScope(node)) {
         for (const e of entries) for (const el of e.els) this.overlay.release(el);
         this.liveMatches -= entries.length;
         this.nodeMatches.delete(node);
@@ -327,7 +336,7 @@ export class LensScanner {
     const hrefs = this.pendingHrefs;
     this.pendingHrefs = [];
     for (const a of hrefs) {
-      if (!a.isConnected) continue;
+      if (!this.inScope(a)) continue;
       for (const n of walkTextNodes(a)) this.invalidate(n);
     }
 
@@ -338,7 +347,7 @@ export class LensScanner {
     const roots = this.pendingRoots;
     this.pendingRoots = [];
     for (const root of roots) {
-      if (!root.isConnected) continue;
+      if (!this.inScope(root)) continue;
       if (root.nodeType === Node.TEXT_NODE) {
         this.invalidate(root as Text);
       } else {

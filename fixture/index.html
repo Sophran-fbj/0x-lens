@@ -139,8 +139,11 @@ address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
     <div id="move-a"><p id="move-p" class="addr yes">0x9999000088881111777722223333aaaa4444bbbb</p></div>
     <div id="move-b" style="margin-top: 260px"></div>
     <p id="slow-p" class="addr yes">0xabab1212cdcd3434efef5656787890991212abab</p>
-    <p class="no">Right-edge partials must NOT match: foo.eth.com · vitalik.eth-link · éfoo.eth</p>
+    <p class="no">Right-edge partials must NOT match: foo.eth.com · vitalik.eth-link · éfoo.eth · foo.ethé · foo.eth́</p>
     <p>Trailing sentence period is fine: <span class="addr yes">endpunct.eth</span>.</p>
+    <p><button id="shadow-move">move into shadow root (and back)</button></p>
+    <div id="shadow-src"><p id="shadow-p" class="addr yes">0xcccc0000dddd1111eeee2222ffff3333aaaa4444</p></div>
+    <div id="shadow-host"></div>
   </section>
 
   <script>
@@ -233,6 +236,18 @@ address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
     // Section 17b: slow transform — completion matters, not just start.
     document.getElementById('slow-transform').addEventListener('click', () => {
       document.getElementById('slow-p').classList.toggle('slow-shifted');
+    });
+
+    // Section 17c: move a node into a same-document SHADOW root — it stays
+    // "connected" but leaves the body observer's scope entirely.
+    const shadowRoot = document.getElementById('shadow-host').attachShadow({ mode: 'open' });
+    shadowRoot.innerHTML = '<div id="shadow-dest">shadow destination</div>';
+    const shadowP = document.getElementById('shadow-p');
+    let inShadow = false;
+    document.getElementById('shadow-move').addEventListener('click', () => {
+      if (inShadow) document.getElementById('shadow-src').appendChild(shadowP);
+      else shadowRoot.getElementById('shadow-dest').appendChild(shadowP);
+      inShadow = !inShadow;
     });
   </script>
 </body>

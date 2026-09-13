@@ -44,9 +44,9 @@ try {
   // static: 3 (case forms) + 3 (contracts) + 1 (unknown) + 4 (link/code/pre/quote)
   //        + 1 (sec 10) + 1 (sec 11) + 2 (sec 12 href-recovered)
   //        + 2 (sec 13 ENS names) + 2 (sec 14 names) + 1 (sec 15 href query)
-  //        + 1 (sec 16 transform-p) + 3 (sec 17: move-p, slow-p, endpunct.eth)
-  //        = 24; stress: 150 spans → 174
-  check('initial highlight count = 174', stats.highlights === 174, `got ${stats.highlights}`);
+  //        + 1 (sec 16 transform-p) + 4 (sec 17: move-p, slow-p, endpunct.eth,
+  //        shadow-p) = 25; stress: 150 spans → 175
+  check('initial highlight count = 175', stats.highlights === 175, `got ${stats.highlights}`);
   check('boxes have page-absolute coords', stats.boxes.length > 0 && stats.boxes.every((b) => Number.parseFloat(b.top) > 0));
 
   // href-recovery: both truncated forms resolve to the same href address.
@@ -103,7 +103,7 @@ try {
   const afterAdd = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after dynamic inject = 175', afterAdd === 175, `got ${afterAdd}`);
+  check('highlight after dynamic inject = 176', afterAdd === 176, `got ${afterAdd}`);
 
   // Text mutation (characterData path).
   await page.click('#mutate');
@@ -111,7 +111,7 @@ try {
   const afterMutate = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after text mutation = 176', afterMutate === 176, `got ${afterMutate}`);
+  check('highlight after text mutation = 177', afterMutate === 177, `got ${afterMutate}`);
 
   // Stress button (MO + near-cap path).
   await page.click('#stress-btn');
@@ -119,7 +119,7 @@ try {
   const afterStress = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
   );
-  check('highlight after +150 stress = 326', afterStress === 326, `got ${afterStress}`);
+  check('highlight after +150 stress = 327', afterStress === 327, `got ${afterStress}`);
 
   // Layout-only shift: style toggle moves the address with ZERO DOM mutation.
   // The highlight must follow (layout-shift PerformanceObserver path).
@@ -236,6 +236,10 @@ try {
     beforeSlow !== null && afterSlow !== null && Math.abs(afterSlow - beforeSlow - 120) < 20,
     `Δ=${beforeSlow !== null && afterSlow !== null ? (afterSlow - beforeSlow).toFixed(0) : 'n/a'}px`,
   );
+  // Restore: the translated highlight physically covers controls below it —
+  // later clicks (e.g. #shadow-move) would hit the .hl instead.
+  await page.click('#slow-transform');
+  await page.waitForTimeout(1400);
 
   // Node MOVE while staying connected: exactly one highlight, box follows.
   const MOVE = getAddress('0x9999000088881111777722223333aaaa4444bbbb');
@@ -269,9 +273,27 @@ try {
     `Δ=${beforeMove.top !== null && afterMove.top !== null ? (afterMove.top - beforeMove.top).toFixed(0) : 'n/a'}px`,
   );
 
+  // Node moved INTO a same-document shadow root: still "connected" but out
+  // of the body observer's scope — highlight must go, and come back on return.
+  const SHADOW = getAddress('0xcccc0000dddd1111eeee2222ffff3333aaaa4444');
+  const shadowCount = () =>
+    page.evaluate(
+      (a) =>
+        document
+          .querySelector('[data-0x-lens-overlay]')
+          .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`).length,
+      SHADOW,
+    );
+  await page.click('#shadow-move');
+  await page.waitForTimeout(700);
+  check('shadow-moved node pruned (isConnected is not scope)', (await shadowCount()) === 0, `got ${await shadowCount()}`);
+  await page.click('#shadow-move');
+  await page.waitForTimeout(700);
+  check('node returned from shadow re-highlighted', (await shadowCount()) === 1, `got ${await shadowCount()}`);
+
   // Right-edge name forms: partials never match; sentence period does.
   check(
-    'foo.eth.com / éfoo.eth never match',
+    'foo.eth.com / éfoo.eth / foo.ethé never match',
     (await nameCount('foo.eth')) === 0 && (await nameCount('foo.eth.com')) === 0,
   );
   check(

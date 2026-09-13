@@ -28,14 +28,17 @@ export const TRUNCATED_ADDRESS_RE = /\b0x[a-fA-F0-9]{4,8}(?:…|\.\.\.)[a-fA-F0-
  * (`sub.vitalik.eth` matches whole or not at all), or `@` (email domains
  * at any depth).
  *
- * Right guard `(?![\w-])(?!\.[\p{L}\p{N}])`: no word char or hyphen after
- * `eth` (`foo.eth-link`), and no `.`+alphanumeric (`foo.eth.com`) — while
- * a sentence-final period (`…vitalik.eth.`) still passes.
+ * Right guard `(?![\p{L}\p{N}\p{M}_-])(?!\.[\p{L}\p{N}\p{M}])`: nothing
+ * name-ish may follow `eth` — letters/digits/marks in ANY script
+ * (`foo.ethé`, `foo.eth́`), `_`, `-` (`foo.eth-link`), or a
+ * `.`+name-char (`foo.eth.com`) — while a sentence-final period
+ * (`…vitalik.eth.`) still passes. Symmetric with the left guard: both
+ * sides use Unicode properties (ASCII \w left the right side porous).
  *
  * Unicode/emoji names are a deliberate V1.5 non-goal (ENSIP-15).
  */
 export const ENS_NAME_RE =
-  /(?<![\p{L}\p{N}_@.\-])(?:[a-z0-9](?:[a-z0-9-]{0,59}[a-z0-9])?\.)+eth(?![\w-])(?!\.[\p{L}\p{N}])/giu;
+  /(?<![\p{L}\p{N}_@.\-])(?:[a-z0-9](?:[a-z0-9-]{0,59}[a-z0-9])?\.)+eth(?![\p{L}\p{N}\p{M}_-])(?!\.[\p{L}\p{N}\p{M}])/giu;
 
 /** A full 0x{40} address extracted from an href string, EIP-55 checked.
  *  Lowercase/all-uppercase hex accepted per the address policy. */
