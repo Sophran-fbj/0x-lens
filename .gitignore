@@ -1,0 +1,12 @@
+node_modules/
+.output/
+.wxt/
+.env
+.stats/
+*.zip
+
+# Local AI assistant files
+CLAUDE.md
+AGENTS.md
+.claude/
+.codex/

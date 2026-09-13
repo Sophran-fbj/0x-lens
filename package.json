@@ -1,0 +1,27 @@
+{
+  "name": "0x-lens",
+  "description": "Hover any Ethereum address on the web to reveal its onchain identity.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "compile": "tsc --noEmit",
+    "fixture": "vite fixture --port 5173"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "viem": "^2.56.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@wxt-dev/module-react": "^1.2.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "wxt": "^0.21.0"
+  }
+}

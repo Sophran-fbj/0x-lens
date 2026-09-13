@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>0x Lens — fixture</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #1c1f26; }
+    h1 { font-size: 20px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; margin-bottom: 6px; }
+    section { margin: 36px 0; }
+    .addr { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .no { color: #9ca3af; }
+    .yes { color: #111827; }
+    code { background: #f4f4f5; padding: 2px 6px; border-radius: 4px; }
+    pre { background: #f4f4f5; padding: 12px; border-radius: 6px; overflow-x: auto; }
+    button { padding: 8px 14px; cursor: pointer; margin-right: 8px; }
+    #stress span { display: inline-block; margin: 3px; font-family: ui-monospace, monospace; font-size: 12px; }
+    .hint { font-size: 13px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <h1>0x Lens fixture</h1>
+  <p class="hint">
+    Test rig for the detection layer. <span class="yes">Highlighted = expected.</span>
+    <span class="no">Dimmed = expected NOT to highlight.</span>
+    Serve with <code>npm run fixture</code> and load the unpacked extension.
+  </p>
+
+  <section>
+    <h2>1 · Rich EOA — vitalik.eth (3 case forms, all valid)</h2>
+    <p class="addr yes">0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045</p>
+    <p class="addr yes">0xd8da6bf26964af9d7eed9e03e53415d37aa96045</p>
+    <p class="addr yes">0xD8DA6BF26964AF9D7EED9E03E53415D37AA96045</p>
+  </section>
+
+  <section>
+    <h2>2 · Contracts</h2>
+    <p class="addr yes">USDC&nbsp; 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48</p>
+    <p class="addr yes">WETH&nbsp; 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2</p>
+    <p class="addr yes">DAI&nbsp;&nbsp; 0x6B175474E89094C44Da98b954EedeAC495271d0F</p>
+  </section>
+
+  <section>
+    <h2>3 · Broken checksum — one flipped case (must NOT highlight)</h2>
+    <p class="addr no">0xD8dA6BF26964aF9D7eEd9e03E53415D37aA96045</p>
+  </section>
+
+  <section>
+    <h2>4 · Unknown address (empty-state path)</h2>
+    <p class="addr yes">0xabcdef0123456789abcdef0123456789abcdef01</p>
+  </section>
+
+  <section>
+    <h2>5 · Truncated forms (must NOT highlight — V1.5 href heuristic)</h2>
+    <p class="addr no">0xd8dA…6045 &nbsp;/&nbsp; 0xd8dA...6045</p>
+  </section>
+
+  <section>
+    <h2>6 · Context variety</h2>
+    <p>Inside a link: <a class="addr yes" href="https://etherscan.io/address/0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045">vitalik's address</a></p>
+    <p>Inside <code class="addr yes">0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48</code> tag</p>
+    <pre>// inside a pre block
+address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"</pre>
+    <blockquote>Quoted: <span class="addr yes">0x6B175474E89094C44Da98b954EedeAC495271d0F</span></blockquote>
+  </section>
+
+  <section>
+    <h2>7 · Tx hash, 64 hex (must NOT highlight)</h2>
+    <p class="addr no">0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060</p>
+  </section>
+
+  <section>
+    <h2>8 · Dynamic content (MutationObserver)</h2>
+    <button id="add">inject address paragraph</button>
+    <button id="mutate">mutate existing text</button>
+    <div id="dynamic"></div>
+    <p id="mutable-node" class="addr">this paragraph starts without an address</p>
+  </section>
+
+  <section>
+    <h2>9 · Stress</h2>
+    <button id="stress-btn">inject 150 more</button>
+    <div id="stress"></div>
+  </section>
+
+  <script>
+    // Page's own script tag is skipped by the scanner (SKIP_TAGS).
+    const VITALIK = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+    const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+
+    // Initial 150 spans (initial-scan path).
+    const stress = document.getElementById('stress');
+    function addStress(n, offset) {
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < n; i++) {
+        const s = document.createElement('span');
+        s.textContent = (i + offset) % 3 === 0 ? VITALIK : USDC;
+        frag.appendChild(s);
+      }
+      stress.appendChild(frag);
+    }
+    addStress(150, 0);
+    document.getElementById('stress-btn').addEventListener('click', () => addStress(150, 1000));
+
+    document.getElementById('add').addEventListener('click', () => {
+      const p = document.createElement('p');
+      p.className = 'addr yes';
+      p.textContent = VITALIK;
+      document.getElementById('dynamic').appendChild(p);
+    });
+
+    let mutated = false;
+    document.getElementById('mutate').addEventListener('click', () => {
+      const p = document.getElementById('mutable-node');
+      mutated = !mutated;
+      p.textContent = mutated
+        ? 'now it contains one: ' + USDC
+        : 'this paragraph starts without an address';
+    });
+  </script>
+</body>
+</html>
