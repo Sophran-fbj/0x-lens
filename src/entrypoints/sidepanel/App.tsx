@@ -98,7 +98,7 @@ export default function App() {
           {error === 'NAME_NOT_FOUND' ? (
             <section className="px-4 py-6 text-[10px] tracking-[0.12em] text-lens-dim">
               UNREGISTERED NAME
-              <div className="mt-2 normal-case tracking-normal">no such name on mainnet</div>
+              <div className="mt-2 normal-case tracking-normal">no such name on Ethereum mainnet</div>
             </section>
           ) : error ? (
             <section className="px-4 py-6 text-[10px] tracking-[0.12em] text-red-400">

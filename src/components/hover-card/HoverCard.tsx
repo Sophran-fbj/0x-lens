@@ -67,7 +67,7 @@ export function HoverCard({ target }: { target: CardTarget }) {
         <div className="oxl-empty">
           UNREGISTERED NAME
           <span className="oxl-scan-dim" />
-          no such name on mainnet
+          no such name on Ethereum mainnet
         </div>
       ) : error ? (
         <div className="oxl-empty">
@@ -85,7 +85,7 @@ export function HoverCard({ target }: { target: CardTarget }) {
         <div className="oxl-empty">
           NO ON-CHAIN FOOTPRINT
           <span className="oxl-scan-dim" />
-          no activity on mainnet
+          no activity on Ethereum mainnet
         </div>
       ) : (
         <motion.div
