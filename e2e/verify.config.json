@@ -1,0 +1,12 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "launchOptions": {
+      "headless": false,
+      "args": [
+        "--disable-extensions-except=D:/code/web3p/0x-lens/.output/chrome-mv3",
+        "--load-extension=D:/code/web3p/0x-lens/.output/chrome-mv3"
+      ]
+    }
+  }
+}

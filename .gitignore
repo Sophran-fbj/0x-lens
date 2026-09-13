@@ -4,6 +4,8 @@ node_modules/
 .env
 .stats/
 *.zip
+.playwright-cli/
+.playwright-profile/
 
 # Local AI assistant files
 CLAUDE.md
