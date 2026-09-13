@@ -109,4 +109,10 @@ export class OverlayLayer {
     el.style.width = `${rect.width}px`;
     el.style.height = `${rect.height}px`;
   }
+
+  /** Initial-scan stats, bridged through the DOM so main-world tooling
+   *  (e2e, devtools console of the page) can read them. */
+  reportStats(stats: { textNodes: number; matches: number; ms: number }): void {
+    this.host.dataset.scanStats = JSON.stringify(stats);
+  }
 }

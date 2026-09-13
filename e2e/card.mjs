@@ -5,14 +5,9 @@
  * Prereqs: `npm run build`, fixture server running (`npm run fixture`).
  *   node e2e/card.mjs
  */
-import { createRequire } from 'module';
 import { getAddress } from 'viem';
+import { launchExtension } from './browser.mjs';
 
-const require = createRequire(import.meta.url);
-const { chromium } = require('D:/code/nvmmode/nvm/node_global/node_modules/@playwright/cli/node_modules/playwright');
-
-const EXT_PATH = 'D:/code/web3p/0x-lens/.output/chrome-mv3';
-const PROFILE = 'D:/code/web3p/0x-lens/.playwright-profile';
 const FIXTURE = 'http://localhost:5173/';
 
 // Highlight boxes carry the EIP-55 checksummed address in data-address.
@@ -26,14 +21,7 @@ const check = (name, pass, detail = '') => {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const ctx = await chromium.launchPersistentContext(PROFILE, {
-  headless: false,
-  channel: 'msedge',
-  // Playwright forces reduced motion by default — opt out so the REAL
-  // acquire path (intent 200ms + scan 350ms) is what we test.
-  reducedMotion: 'no-preference',
-  args: [`--disable-extensions-except=${EXT_PATH}`, `--load-extension=${EXT_PATH}`],
-});
+const ctx = await launchExtension();
 
 try {
   const page = ctx.pages()[0] ?? (await ctx.newPage());

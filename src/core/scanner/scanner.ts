@@ -69,12 +69,23 @@ export class LensScanner {
       }
       performance.mark('oxl:scan-end');
       performance.measure('oxl:initial-scan', 'oxl:scan-start', 'oxl:scan-end');
+      // Small stats surface for e2e/perf measurement, bridged through the
+      // DOM (shared between isolated and main worlds; window is NOT).
+      const stats = {
+        textNodes: nodes.length,
+        matches: this.liveMatches,
+        ms: Math.round(performance.now() - this.startedAt),
+      };
+      this.overlay.reportStats(stats);
       if (import.meta.env.DEV) {
-        const ms = (performance.now() - this.startedAt).toFixed(1);
         console.info(
-          `[0x Lens] initial scan: ${nodes.length} text nodes → ${this.liveMatches} matches in ${ms}ms`,
+          `[0x Lens] initial scan: ${stats.textNodes} text nodes → ${stats.matches} matches in ${stats.ms}ms`,
         );
       }
+      // Entries can carry zero boxes if text existed before first layout
+      // (observed on SSR-heavy sites: matches found, rects empty). A delayed
+      // re-flush repositions them once the page has actually painted.
+      window.setTimeout(() => this.scheduleFlush(), 1200);
     };
     this.requestIdle(pump);
   }

@@ -6,6 +6,8 @@ node_modules/
 *.zip
 .playwright-cli/
 .playwright-profile/
+e2e/video/
+e2e/*.png
 
 # Local AI assistant files
 CLAUDE.md

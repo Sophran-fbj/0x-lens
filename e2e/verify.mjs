@@ -5,14 +5,8 @@
  * Run AFTER `npm run build` and with the fixture server up (`npm run fixture`):
  *   node e2e/verify.mjs
  */
-import { createRequire } from 'module';
+import { EXT_PATH, launchExtension } from './browser.mjs';
 
-const require = createRequire(import.meta.url);
-// Reuse the playwright bundled with the global playwright-cli install.
-const { chromium } = require('D:/code/nvmmode/nvm/node_global/node_modules/@playwright/cli/node_modules/playwright');
-
-const EXT_PATH = 'D:/code/web3p/0x-lens/.output/chrome-mv3';
-const PROFILE = 'D:/code/web3p/0x-lens/.playwright-profile';
 const FIXTURE = 'http://localhost:5173/';
 
 const results = [];
@@ -21,14 +15,7 @@ const check = (name, pass, detail = '') => {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-const ctx = await chromium.launchPersistentContext(PROFILE, {
-  headless: false, // extensions require headed (or new-headless) mode
-  channel: 'msedge', // system browser; bundled chromium not installed
-  args: [
-    `--disable-extensions-except=${EXT_PATH}`,
-    `--load-extension=${EXT_PATH}`,
-  ],
-});
+const ctx = await launchExtension();
 
 try {
   const page = ctx.pages()[0] ?? (await ctx.newPage());

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Notes on chain identity</title>
+  <style>
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      background: #faf9f6;
+      color: #1a1d21;
+      max-width: 660px;
+      margin: 48px auto;
+      padding: 0 20px;
+      line-height: 1.75;
+      font-size: 17px;
+    }
+    h1 { font-size: 28px; line-height: 1.3; margin-bottom: 6px; }
+    .byline { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #6b7280; letter-spacing: .08em; margin-bottom: 36px; }
+    p { margin: 20px 0; }
+    .addr { font-family: ui-monospace, Menlo, monospace; font-size: 15px; background: #f0efea; padding: 1px 5px; border-radius: 4px; }
+    blockquote { border-left: 3px solid #d7d3c8; margin: 28px 0; padding: 2px 0 2px 18px; color: #444; font-style: italic; }
+    code { font-family: ui-monospace, Menlo, monospace; font-size: 15px; background: #f0efea; padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Reading the chain like text</h1>
+  <div class="byline">FIELD NOTES · ETHEREUM · 6 MIN READ</div>
+
+  <p>
+    Somewhere between the whitepaper and the app store, Ethereum addresses became
+    a kind of punctuation — strings of hex that sit inside prose, commit messages
+    and post-mortems, quietly identifying the parties involved. They are,
+    functionally, proper nouns with no dictionary.
+  </p>
+
+  <p>
+    The canonical example is, of course, Vitalik's account
+    <span class="addr">0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045</span>,
+    which resolves to <code>vitalik.eth</code> and has been signing things since
+    the very first block era. Watch what a small amount of context does to it:
+    the moment you can read a name off the hex, the sentence it sits in changes.
+  </p>
+
+  <blockquote>
+    An address is not an identity. But an address with a name, a balance and a
+    footprint is a character in the story — and most pages leave it as noise.
+  </blockquote>
+
+  <p>
+    Contracts read differently again. The USDC contract
+    <span class="addr">0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48</span>
+    exposes ERC-20 metadata views, so a careful reader can resolve it to
+    <em>USD Coin</em> without leaving the paragraph. And a freshly generated
+    key like <span class="addr">0xabcdef0123456789abcdef0123456789abcdef01</span>
+    carries no footprint at all — which is itself information: someone quoted
+    an address that has never transacted.
+  </p>
+
+  <p>
+    The rest is ergonomics. Identity should arrive at the point of reading, not
+    at the point of pasting into an explorer tab.
+  </p>
+</body>
+</html>
