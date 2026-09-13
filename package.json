@@ -12,6 +12,7 @@
     "fixture": "vite fixture --port 5173"
   },
   "dependencies": {
+    "framer-motion": "^13.2.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "viem": "^2.56.5"

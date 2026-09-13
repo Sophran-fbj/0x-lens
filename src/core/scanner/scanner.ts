@@ -29,7 +29,6 @@ const MO_DEBOUNCE_MS = 200;
 const IDLE_BUDGET_MS = 8; // scan work budget per idle tick
 
 export class LensScanner {
-  private readonly overlay = new OverlayLayer();
   private readonly nodeMatches = new Map<Text, MatchEntry[]>();
   private readonly processed = new WeakSet<Text>();
   private mo: MutationObserver | null = null;
@@ -39,6 +38,8 @@ export class LensScanner {
   private liveMatches = 0;
   private capLogged = false;
   private startedAt = 0;
+
+  constructor(private readonly overlay: OverlayLayer) {}
 
   start(): void {
     if (this.mo) return; // idempotent
@@ -150,7 +151,7 @@ export class LensScanner {
     }
     for (const rect of rects) {
       if (rect.width === 0 || rect.height === 0) continue; // display:none etc.
-      const el = this.overlay.alloc();
+      const el = this.overlay.alloc(entry.address);
       this.overlay.place(el, rect);
       entry.els.push(el);
     }

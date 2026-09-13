@@ -1,3 +1,5 @@
+import type { Address } from '../address';
+
 /**
  * Zero-mutation highlight layer.
  *
@@ -10,25 +12,57 @@
  * needs no listeners; only reflows (fonts, images, DOM changes) require
  * repositioning, handled by the scanner's MutationObserver/resize hooks.
  *
- * Phase 1 styles are a placeholder tint; the real "acquire" look (scan line,
- * glow) lands in Phase 3 with the design tokens.
+ * Since Phase 3 the boxes are interactive (pointer-events: auto) — hovering
+ * one triggers the acquire sequence; `.acquiring` + `.oxl-scanline` are the
+ * glow/scan visuals driven by the hover controller.
  */
 
-// Placeholder highlight look — swapped for the Phase 3 design language.
 const HIGHLIGHT_CSS = `
   :host { all: initial; }
+  .hl-layer { position: relative; }
   .hl {
     position: absolute;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: default;
     border-radius: 3px;
-    background: rgba(94, 234, 212, 0.07);
-    box-shadow: inset 0 -1px 0 rgba(94, 234, 212, 0.5);
+    background: rgba(94, 234, 212, 0.06);
+    box-shadow: inset 0 -1px 0 rgba(94, 234, 212, 0.4);
+    transition: background 0.12s ease, box-shadow 0.12s ease;
+  }
+  .hl:hover {
+    background: rgba(94, 234, 212, 0.12);
+    box-shadow: inset 0 -1px 0 rgba(94, 234, 212, 0.65);
+  }
+  .hl.acquiring {
+    background: rgba(94, 234, 212, 0.18);
+    box-shadow: inset 0 -1px 0 rgba(94, 234, 212, 0.9), 0 0 12px rgba(94, 234, 212, 0.25);
+  }
+  .oxl-scanline {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 2px;
+    pointer-events: none;
+    background: rgba(94, 234, 212, 0.95);
+    box-shadow: 0 0 8px rgba(94, 234, 212, 0.9);
+    animation: oxl-sweep 0.35s ease-in-out forwards;
+  }
+  @keyframes oxl-sweep {
+    from { left: 0; }
+    to { left: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .oxl-scanline { animation-duration: 0.01s; }
+    .hl { transition: none; }
   }
 `;
 
 export class OverlayLayer {
   readonly host: HTMLDivElement;
   private readonly root: ShadowRoot;
+  /** Event-delegation surface for all highlight boxes (inside the shadow root,
+   *  so listeners see the real targets, not the retargeted host). */
+  private readonly layer: HTMLDivElement;
 
   constructor() {
     this.host = document.createElement('div');
@@ -43,17 +77,24 @@ export class OverlayLayer {
     this.root = this.host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = HIGHLIGHT_CSS;
-    this.root.append(style);
+    this.layer = document.createElement('div');
+    this.layer.className = 'hl-layer';
+    this.root.append(style, this.layer);
 
     // documentElement (not body): avoids body-level transforms creating a
     // different containing block for our absolute coordinates.
     document.documentElement.append(this.host);
   }
 
-  alloc(): HTMLDivElement {
+  get eventSurface(): HTMLDivElement {
+    return this.layer;
+  }
+
+  alloc(address: Address): HTMLDivElement {
     const el = document.createElement('div');
     el.className = 'hl';
-    this.root.append(el);
+    el.dataset.address = address;
+    this.layer.append(el);
     return el;
   }
 

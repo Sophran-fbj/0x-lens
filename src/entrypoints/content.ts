@@ -1,3 +1,6 @@
+import { mountCardLayer } from '@/components/hover-card/mount';
+import { HoverController } from '@/core/hover/controller';
+import { OverlayLayer } from '@/core/scanner/overlay';
 import { LensScanner } from '@/core/scanner/scanner';
 
 export default defineContentScript({
@@ -7,6 +10,10 @@ export default defineContentScript({
     // Top frame only in V1 (CLAUDE.md): embedded iframes (tweets, widgets)
     // get no scanner — per-frame double UI is worse than the missed coverage.
     if (window !== window.top) return;
-    new LensScanner().start();
+
+    const overlay = new OverlayLayer();
+    const cards = mountCardLayer();
+    new LensScanner(overlay).start();
+    new HoverController(overlay, cards.host).start();
   },
 });
