@@ -1,6 +1,7 @@
-import { openLens } from '@/core/messaging/client';
-import type { LensIdentity } from '@/core/messaging/protocol';
+import { openLens, requestProfile } from '@/core/messaging/client';
+import type { LensIdentity, LensResponse } from '@/core/messaging/protocol';
 import { identityKey } from '@/core/messaging/protocol';
+import { toErrorCode } from '@/core/errors';
 import { cardStore, CLOSE_GRACE_MS, INTENT_MS, resolvedAddresses, SCAN_MS } from '@/components/hover-card/store';
 import type { OverlayLayer } from '../scanner/overlay';
 
@@ -91,10 +92,21 @@ export class HoverController {
     const anchorRect = hl.getBoundingClientRect();
     this.activeHl = hl;
     const key = identityKey(identity);
+    // Start the real lookup as soon as hover intent is confirmed. Normalizing
+    // transport failures here also attaches a rejection handler immediately,
+    // before the card consumes the promise after the acquire animation.
+    const profileRequest = requestProfile(identity).catch(
+      (err): LensResponse => ({ ok: false, error: toErrorCode(err) }),
+    );
 
     const show = (): void => {
       this.cleanupScan();
-      cardStore.show({ identity, anchorRect, fast: resolvedAddresses.has(key) });
+      cardStore.show({
+        identity,
+        profileRequest,
+        anchorRect,
+        fast: resolvedAddresses.has(key),
+      });
     };
 
     if (this.reduced || resolvedAddresses.has(key)) {

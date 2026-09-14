@@ -27,6 +27,7 @@ const SKIP_TAGS = new Set([
   'VIDEO',
   'AUDIO',
 ]);
+const MIN_CANDIDATE_LENGTH = 5;
 
 export function isExcludedElement(el: Element): boolean {
   if (SKIP_TAGS.has(el.tagName)) return true;
@@ -50,8 +51,8 @@ export function* walkTextNodes(root: Node): Generator<Text> {
           : NodeFilter.FILTER_SKIP;
       }
       const text = node as Text;
-      // Cheapest pre-filter: the shortest candidate ("a.eth") is 6 chars.
-      if ((text.nodeValue?.length ?? 0) < 6) return NodeFilter.FILTER_REJECT;
+      // Cheapest pre-filter: the shortest candidate ("a.eth") is 5 chars.
+      if ((text.nodeValue?.length ?? 0) < MIN_CANDIDATE_LENGTH) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
     },
   });
@@ -78,7 +79,7 @@ export interface RawCandidate {
  *  in the scanner, which can see the DOM context. */
 export function scanTextNode(node: Text): RawCandidate[] {
   const text = node.nodeValue ?? '';
-  if (text.length < 6) return [];
+  if (text.length < MIN_CANDIDATE_LENGTH) return [];
   const parent = node.parentElement;
   if (parent && isExcludedElement(parent)) return [];
 

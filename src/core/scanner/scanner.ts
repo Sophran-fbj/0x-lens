@@ -42,9 +42,9 @@ export class LensScanner {
   private readonly nodeMatches = new Map<Text, MatchEntry[]>();
   private readonly processed = new WeakSet<Text>();
   private mo: MutationObserver | null = null;
-  private pendingRoots: Node[] = [];
-  private pendingTexts: Text[] = [];
-  private pendingHrefs: Element[] = [];
+  private readonly pendingRoots = new Set<Node>();
+  private readonly pendingTexts = new Set<Text>();
+  private readonly pendingHrefs = new Set<Element>();
   private flushTimer: number | null = null;
   private repositionTimer: number | null = null;
   private liveMatches = 0;
@@ -59,9 +59,9 @@ export class LensScanner {
     performance.mark('oxl:scan-start');
     this.scheduleInitialScan();
     this.observe();
-    window.addEventListener('resize', this.scheduleFlush);
+    window.addEventListener('resize', this.scheduleReposition);
     // Late font loading shifts text — recompute all rects once fonts settle.
-    document.fonts?.ready.then(() => this.scheduleFlush());
+    document.fonts?.ready.then(() => this.scheduleReposition());
     // Layout-only shifts (image load, accordions, class/style toggles)
     // produce NO DOM mutations — but they move our page-absolute boxes.
     // The browser's layout-shift entries are exactly the signal we need;
@@ -69,7 +69,7 @@ export class LensScanner {
     // layout, so they never fire this. Safe only because repositioning
     // updates boxes in place (see positionEntry).
     try {
-      new PerformanceObserver(() => this.scheduleFlush()).observe({
+      new PerformanceObserver(() => this.scheduleReposition()).observe({
         type: 'layout-shift',
         buffered: false,
       });
@@ -111,7 +111,7 @@ export class LensScanner {
       // Entries can carry zero boxes if text existed before first layout
       // (observed on SSR-heavy sites: matches found, rects empty). A delayed
       // re-flush repositions them once the page has actually painted.
-      window.setTimeout(() => this.scheduleFlush(), 1200);
+      window.setTimeout(() => this.scheduleReposition(), 1200);
     };
     this.requestIdle(pump);
   }
@@ -239,20 +239,24 @@ export class LensScanner {
 
   private observe(): void {
     this.mo = new MutationObserver((records) => {
+      let needsFlush = false;
       for (const r of records) {
         if (r.type === 'childList') {
           // Subtrees leaving the DOM may come back (virtual lists, cached
           // views) — possibly MUTATED while detached, which our body-rooted
           // observer cannot see. Forget everything under them now.
           for (const n of r.removedNodes) this.clearProcessedUnder(n);
-          for (const n of r.addedNodes) this.pendingRoots.push(n);
+          for (const n of r.addedNodes) this.pendingRoots.add(n);
+          needsFlush = true;
         } else if (r.type === 'characterData') {
-          this.pendingTexts.push(r.target as Text);
+          this.pendingTexts.add(r.target as Text);
+          needsFlush = true;
         } else if (r.type === 'attributes') {
           if (r.attributeName === 'href') {
             // A link gained/changed its target: truncated text underneath
             // must re-validate against the new href.
-            this.pendingHrefs.push(r.target as Element);
+            this.pendingHrefs.add(r.target as Element);
+            needsFlush = true;
           } else {
             // class/style changes can move text (incl. via transform) with
             // no childList/characterData mutation — geometry only.
@@ -260,7 +264,7 @@ export class LensScanner {
           }
         }
       }
-      if (records.length > 0) this.scheduleFlush();
+      if (needsFlush) this.scheduleFlush();
     });
     this.mo.observe(document.body, {
       childList: true,
@@ -314,6 +318,14 @@ export class LensScanner {
   };
 
   private flush(): void {
+    // A full flush ends with repositionAll(), so an already-scheduled
+    // geometry-only pass would be duplicate work. Transition/layout events
+    // arriving after this flush can still schedule the next required pass.
+    if (this.repositionTimer !== null) {
+      clearTimeout(this.repositionTimer);
+      this.repositionTimer = null;
+    }
+
     // 1. Prune matches whose text node left the scan scope — detached OR
     //    moved into a shadow tree (still "connected" but invisible to our
     //    body observer). Also clear `processed`: virtual lists re-insert the
@@ -328,13 +340,13 @@ export class LensScanner {
     }
 
     // 2. Rescan text nodes whose content changed.
-    const texts = this.pendingTexts;
-    this.pendingTexts = [];
+    const texts = [...this.pendingTexts];
+    this.pendingTexts.clear();
     for (const t of texts) this.invalidate(t);
 
     // 2b. Links whose href appeared/changed: re-validate their text.
-    const hrefs = this.pendingHrefs;
-    this.pendingHrefs = [];
+    const hrefs = [...this.pendingHrefs];
+    this.pendingHrefs.clear();
     for (const a of hrefs) {
       if (!this.inScope(a)) continue;
       for (const n of walkTextNodes(a)) this.invalidate(n);
@@ -344,8 +356,8 @@ export class LensScanner {
     //    be MOVED while staying connected — the prune sweep above won't have
     //    touched it, so its old entries must be released here or the old
     //    highlight boxes leak (duplicate boxes + liveMatches double-count).
-    const roots = this.pendingRoots;
-    this.pendingRoots = [];
+    const roots = [...this.pendingRoots];
+    this.pendingRoots.clear();
     for (const root of roots) {
       if (!this.inScope(root)) continue;
       if (root.nodeType === Node.TEXT_NODE) {

@@ -5,6 +5,9 @@
 
 export interface CardTarget {
   identity: import('@/core/messaging/protocol').LensIdentity;
+  /** Starts when hover intent is confirmed, so the RPC request runs in
+   *  parallel with the acquire animation instead of waiting for card mount. */
+  profileRequest: Promise<import('@/core/messaging/protocol').LensResponse>;
   /** Viewport rect of the hovered highlight box at trigger time. */
   anchorRect: DOMRect;
   /** True when the acquire animation was already played for this identity on

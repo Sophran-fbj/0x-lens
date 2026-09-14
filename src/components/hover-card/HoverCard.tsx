@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { AddressProfile } from '@/core/messaging/protocol';
 import { identityKey } from '@/core/messaging/protocol';
-import { openLens, requestProfile } from '@/core/messaging/client';
+import { openLens } from '@/core/messaging/client';
 import { ERROR_COPY, toErrorCode, type LensErrorCode } from '@/core/errors';
 import { formatEth, shortenAddress } from '@/core/format';
 import type { CardTarget } from './store';
@@ -31,7 +31,7 @@ export function HoverCard({ target }: { target: CardTarget }) {
     let alive = true;
     setProfile(null);
     setError(null);
-    requestProfile(identity)
+    target.profileRequest
       .then((res) => {
         if (!alive) return;
         if (res.ok) {
@@ -47,8 +47,7 @@ export function HoverCard({ target }: { target: CardTarget }) {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, target.profileRequest]);
 
   // Slow path: rows stagger in from hidden. Fast (already-scanned) path:
   // render them immediately — no repeated ceremony.
