@@ -1,5 +1,7 @@
 # 0x Lens
 
+English | [简体中文](README.zh-CN.md)
+
 > Hover any Ethereum address or ENS name on the web to reveal its onchain identity.
 
 Chrome extension · Manifest V3 · Ethereum mainnet.
@@ -22,8 +24,8 @@ ENS names (`vitalik.eth` in prose resolves forward to the account).
 
 - **No wallet, no onboarding, no accounts.** Install and browse.
 - **No third-party APIs, no backend, no telemetry.** Ethereum JSON-RPC is the
-  only data source; nothing ever leaves the browser except address lookups to
-  your RPC endpoint — enforced mechanically: CCIP-Read is disabled (offchain
+  only data source; nothing ever leaves the browser except onchain identity
+  lookups to your RPC endpoint — enforced mechanically: CCIP-Read is disabled (offchain
   ENS resolvers cannot redirect lookups to their own gateways) and the service
   worker's `fetch` rejects any non-RPC origin. No page content is transmitted,
   and error messages crossing into page-rendered UI are stable codes, never
@@ -38,7 +40,7 @@ ENS names (`vitalik.eth` in prose resolves forward to the account).
 
 | | |
 |---|---|
-| ENS | reverse resolution (pure RPC via the universal resolver) |
+| ENS | reverse resolution for addresses and forward resolution for `.eth` names (pure RPC via the universal resolver) |
 | Balance | `eth_getBalance`, formatted without float math |
 | Account type | bytecode: none → **EOA**; `0xef0100‖addr` → **EOA with EIP-7702 delegation** (still an EOA, delegate shown); else **CONTRACT** |
 | Token metadata | contracts probed once via Multicall3 (`name`/`symbol`/`decimals`); renders as `TOKEN · USDC`, never claims verified ERC-20 compliance |
@@ -62,7 +64,7 @@ while the page itself loads, main-thread work per chunk is capped at 8 ms):
 
 | Page | Text nodes | Highlights | Scan wall-time |
 |---|---|---|---|
-| Test rig (171 identities incl. stress) | ~220 | 171 | ~600 ms (stable) |
+| Test rig (175 identities incl. stress) | ~220 | 175 | ~600 ms (stable) |
 | etherscan.io token page | ~2100 | 1 truncated row recovered via href (visible addresses are truncated; full ones live in `<script>` payloads, deliberately never scanned) | 20–90 ms typical, ~1 s on a busy load |
 | Wikipedia · Ethereum | 1977 | 0 | 20–170 ms |
 
@@ -119,10 +121,10 @@ npm run build          # production build → .output/chrome-mv3 (load unpacked)
 Test suite (needs the fixture server + a fresh build):
 
 ```sh
-node e2e/verify.mjs    # detection layer: 7/7
+node e2e/verify.mjs    # detection layer: 31/31
 node e2e/rpc.mjs       # data pipeline against real mainnet: 10/10
-node e2e/card.mjs      # hover card over the real message path: 9/9
-node e2e/panel.mjs     # side panel + gesture open path: 9/9
+node e2e/card.mjs      # hover card over the real message path: 11/11
+node e2e/panel.mjs     # side panel + gesture open path: 10/10
 node e2e/perf.mjs      # real-site scan measurements
 node e2e/demo.mjs && node e2e/convert.mjs   # regenerate docs/*.gif
 ```
