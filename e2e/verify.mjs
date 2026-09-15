@@ -22,7 +22,17 @@ try {
   const page = ctx.pages()[0] ?? (await ctx.newPage());
   await page.goto(FIXTURE, { waitUntil: 'load' });
   // Initial scan runs on document_idle + idle callbacks — give it a beat.
-  await page.waitForTimeout(1500);
+  const clickFixtureControl = (selector) =>
+    page.locator(selector).evaluate((button) => button.click());
+
+  // Shared CI runners can take longer than a fixed delay to finish the
+  // idle-budgeted initial scan. Wait for both its stats and rendered boxes.
+  await page.waitForFunction(() => {
+    const host = document.querySelector('[data-0x-lens-overlay]');
+    if (!host?.dataset.scanStats) return false;
+    const scanStats = JSON.parse(host.dataset.scanStats);
+    return scanStats.matches === 175 && host.shadowRoot.querySelectorAll('.hl').length === 175;
+  });
 
   const stats = await page.evaluate(() => {
     const host = document.querySelector('[data-0x-lens-overlay]');
@@ -98,7 +108,7 @@ try {
   // (They can't be — overlay only contains valid matches — so count correctness above covers it.)
 
   // Dynamic injection (MutationObserver path).
-  await page.click('#add');
+  await clickFixtureControl('#add');
   await page.waitForTimeout(700); // 200ms debounce + scan
   const afterAdd = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
@@ -106,7 +116,7 @@ try {
   check('highlight after dynamic inject = 176', afterAdd === 176, `got ${afterAdd}`);
 
   // Text mutation (characterData path).
-  await page.click('#mutate');
+  await clickFixtureControl('#mutate');
   await page.waitForTimeout(700);
   const afterMutate = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
@@ -114,7 +124,7 @@ try {
   check('highlight after text mutation = 177', afterMutate === 177, `got ${afterMutate}`);
 
   // Stress button (MO + near-cap path).
-  await page.click('#stress-btn');
+  await clickFixtureControl('#stress-btn');
   await page.waitForTimeout(900);
   const afterStress = await page.evaluate(
     () => document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll('.hl').length,
@@ -133,7 +143,7 @@ try {
       return el ? el.getBoundingClientRect().top + window.scrollY : null;
     }, addr);
   const beforeShift = await topOf(UNI);
-  await page.click('#shift');
+  await clickFixtureControl('#shift');
   await page.waitForTimeout(900); // transition 150ms + debounce 200ms + margin
   const afterShift = await topOf(UNI);
   check(
@@ -153,10 +163,10 @@ try {
       MKR,
     );
   check('MKR highlighted before detach', (await mkrCount()) === 1);
-  await page.click('#detach');
+  await clickFixtureControl('#detach');
   await page.waitForTimeout(600);
   check('highlight gone after detach', (await mkrCount()) === 0, `got ${await mkrCount()}`);
-  await page.click('#detach');
+  await clickFixtureControl('#detach');
   await page.waitForTimeout(600);
   check('highlight restored after re-insert', (await mkrCount()) === 1, `got ${await mkrCount()}`);
 
@@ -170,7 +180,7 @@ try {
           .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`).length,
       LATE,
     );
-  await page.click('#late-href');
+  await clickFixtureControl('#late-href');
   await page.waitForTimeout(700);
   check('late-set href recovers truncation', (await lateCount()) === 1, `got ${await lateCount()}`);
 
@@ -184,9 +194,9 @@ try {
           .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`).length,
       REUSE,
     );
-  await page.click('#reuse-cycle'); // detach + mutate (mutations invisible to MO)
+  await clickFixtureControl('#reuse-cycle'); // detach + mutate (mutations invisible to MO)
   await page.waitForTimeout(300);
-  await page.click('#reuse-cycle'); // re-attach the SAME node
+  await clickFixtureControl('#reuse-cycle'); // re-attach the SAME node
   await page.waitForTimeout(700);
   check('no-match node rescanned after reuse', (await reuseCount()) === 1, `got ${await reuseCount()}`);
 
@@ -203,7 +213,7 @@ try {
       TRANSFORM_ADDR,
     );
   const beforeTransform = await transformTop();
-  await page.click('#transform-toggle');
+  await clickFixtureControl('#transform-toggle');
   await page.waitForTimeout(900); // 300ms reposition debounce + margin
   const afterTransform = await transformTop();
   check(
@@ -231,7 +241,7 @@ try {
   // A highlight moved by the previous transform test can overlap this fixture
   // control on narrower CI viewports. Trigger the fixture action directly so
   // this assertion tests transition completion rather than pointer hit-testing.
-  await page.locator('#slow-transform').evaluate((button) => button.click());
+  await clickFixtureControl('#slow-transform');
   await page.waitForTimeout(1900); // 1s transition + end event + 300ms debounce
   const afterSlow = await slowTop();
   check(
@@ -241,7 +251,7 @@ try {
   );
   // Restore: the translated highlight physically covers controls below it —
   // later clicks (e.g. #shadow-move) would hit the .hl instead.
-  await page.locator('#slow-transform').evaluate((button) => button.click());
+  await clickFixtureControl('#slow-transform');
   await page.waitForTimeout(1400);
 
   // Node MOVE while staying connected: exactly one highlight, box follows.
@@ -262,7 +272,7 @@ try {
       MOVE,
     );
   const beforeMove = await moveState();
-  await page.click('#move-node');
+  await clickFixtureControl('#move-node');
   await page.waitForTimeout(800);
   const afterMove = await moveState();
   check(
@@ -287,10 +297,10 @@ try {
           .shadowRoot.querySelectorAll(`.hl[data-address="${a}"]`).length,
       SHADOW,
     );
-  await page.click('#shadow-move');
+  await clickFixtureControl('#shadow-move');
   await page.waitForTimeout(700);
   check('shadow-moved node pruned (isConnected is not scope)', (await shadowCount()) === 0, `got ${await shadowCount()}`);
-  await page.click('#shadow-move');
+  await clickFixtureControl('#shadow-move');
   await page.waitForTimeout(700);
   check('node returned from shadow re-highlighted', (await shadowCount()) === 1, `got ${await shadowCount()}`);
 
