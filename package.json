@@ -9,7 +9,8 @@
     "build": "wxt build",
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
-    "fixture": "vite fixture --port 5173"
+    "fixture": "vite fixture --port 5173",
+    "postinstall": "wxt prepare"
   },
   "dependencies": {
     "framer-motion": "^13.2.0",
