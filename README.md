@@ -2,9 +2,28 @@
 
 English | [简体中文](README.zh-CN.md)
 
+[![CI](https://github.com/Sophran-fbj/0x-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/Sophran-fbj/0x-lens/actions/workflows/ci.yml)
+
 > Hover any Ethereum address or ENS name on the web to reveal its onchain identity.
 
 Chrome extension · Manifest V3 · Ethereum mainnet.
+
+## At a glance
+
+| | |
+|---|---|
+| **Problem** | Ethereum identities appear everywhere, but checking each one means leaving the page and opening an explorer. |
+| **What I built** | A Chrome extension that turns addresses and ENS names into hoverable identity cards with a persistent side-panel view. |
+| **Tech stack** | React · TypeScript · WXT · viem · Chrome MV3 · Framer Motion |
+| **Demo / install** | See the demos below; build locally with `npm run build`, or download a packaged ZIP from a tagged GitHub Release. |
+
+**52 browser E2E checks + 10 RPC checks · zero host-page DOM mutation · no telemetry · single-origin RPC architecture**
+
+Three technical highlights:
+
+- A `Range.getClientRects()` overlay annotates text without modifying the host DOM.
+- All chain access stays in the MV3 service worker, with CCIP-Read disabled and non-RPC fetches blocked.
+- An idle-chunked, mutation-aware scanner handles SPA churn, node moves, layout shifts, and ENS/address edge cases.
 
 ![hover demo](docs/hover.gif)
 
@@ -129,8 +148,35 @@ node e2e/perf.mjs      # real-site scan measurements
 node e2e/demo.mjs && node e2e/convert.mjs   # regenerate docs/*.gif
 ```
 
+### CI and RPC-dependent tests
+
+GitHub Actions runs these checks on every push and pull request:
+
+- `npm run compile`
+- `npm run build`
+- `node e2e/verify.mjs` against the local fixture — 31 offline browser checks with no Ethereum RPC access.
+
+The remaining suites intentionally access Ethereum mainnet:
+
+- `node e2e/rpc.mjs` — 10 direct RPC pipeline checks.
+- `node e2e/card.mjs` — 11 browser checks over the real content-script → service-worker → RPC path.
+- `node e2e/panel.mjs` — 10 browser checks including RPC and the side-panel gesture path.
+
+`VITE_RPC_URL` is optional; without it, viem's public mainnet endpoint is used. Set your own endpoint for stable local or private-CI runs. Never commit the value — `.env` is ignored.
+
 Tip: persistent browser profiles cache old service workers — delete
 `.playwright-profile` when background changes seem to not apply.
+
+## Releases
+
+Pushing a version tag runs offline CI, packages the extension with WXT, and publishes the Chrome ZIP as a GitHub Release. Update `manifest.version` in `wxt.config.ts` before tagging:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Chrome Web Store publishing remains manual because it requires a developer account and store review.
 
 ## Roadmap (V2 ideas, deliberately not built)
 

@@ -35,7 +35,7 @@ export default defineConfig({
   manifest: {
     name: '0x Lens',
     version: '0.1.0',
-    description: 'Hover any Ethereum address on the web to reveal its onchain identity.',
+    description: 'Hover Ethereum addresses or ENS names on the web to reveal their onchain identity.',
     permissions: ['storage', 'sidePanel'],
     host_permissions: [`${new URL(resolveRpcUrl()).origin}/*`],
   },

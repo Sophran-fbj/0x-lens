@@ -2,9 +2,28 @@
 
 [English](README.md) | 简体中文
 
+[![CI](https://github.com/Sophran-fbj/0x-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/Sophran-fbj/0x-lens/actions/workflows/ci.yml)
+
 > 在网页上悬停任意 Ethereum 地址或 ENS 名称，即刻查看其链上身份。
 
 Chrome 扩展 · Manifest V3 · Ethereum 主网。
+
+## 第一眼摘要
+
+| | |
+|---|---|
+| **问题** | Ethereum 身份散落在各种网页中，逐个确认往往需要离开当前页面并打开区块浏览器。 |
+| **我做了什么** | 一个 Chrome 扩展，把地址和 ENS 名称变成可悬停的身份卡片，并提供持久侧边栏。 |
+| **技术栈** | React · TypeScript · WXT · viem · Chrome MV3 · Framer Motion |
+| **演示 / 安装** | 下方提供演示；可以运行 `npm run build` 本地构建，或从带版本标签的 GitHub Release 下载 ZIP。 |
+
+**52 项浏览器 E2E + 10 项 RPC 检查 · 不修改宿主页面 DOM · 无遥测 · 单一 RPC 网络出口**
+
+最值得看的三个技术点：
+
+- 使用 `Range.getClientRects()` overlay 标注文本，不修改宿主页面 DOM。
+- 所有链上访问都留在 MV3 service worker；禁用 CCIP-Read，并阻止非 RPC 网络请求。
+- 分片且感知 DOM 变化的扫描器能够处理 SPA 更新、节点移动、布局变化和 ENS / 地址边界情况。
 
 ![悬停卡片演示](docs/hover.gif)
 
@@ -110,8 +129,37 @@ node e2e/perf.mjs      # 真实网站扫描性能
 node e2e/demo.mjs && node e2e/convert.mjs   # 重新生成演示 GIF
 ```
 
+### CI 与 RPC 测试边界
+
+GitHub Actions 会在每次 push 和 pull request 时自动运行：
+
+- `npm run compile`
+- `npm run build`
+- 针对本地 fixture 的 `node e2e/verify.mjs`：共 31 项离线浏览器检查，不访问 Ethereum RPC。
+
+以下测试会主动访问 Ethereum 主网：
+
+- `node e2e/rpc.mjs`：10 项 RPC 数据管线检查。
+- `node e2e/card.mjs`：11 项浏览器检查，覆盖 content script → service worker → RPC 的真实链路。
+- `node e2e/panel.mjs`：10 项浏览器检查，包含 RPC 和侧边栏用户手势链路。
+
+`VITE_RPC_URL` 是可选环境变量；未配置时使用 viem 的公共主网端点。为了提高本地或私有 CI
+的稳定性，可以设置自己的 RPC 地址。不要提交该值，`.env` 已被忽略。
+
 提示：持久化浏览器 profile 可能缓存旧 service worker。如果 background 修改后行为没有变化，
 请删除 `.playwright-profile` 后重新运行测试。
+
+## 发布
+
+推送版本标签后，GitHub Actions 会先运行离线 CI，再通过 WXT 打包扩展，并把 Chrome ZIP
+发布到 GitHub Releases。创建标签前，需要先更新 `wxt.config.ts` 中的 `manifest.version`：
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Chrome Web Store 发布仍需手动完成，因为它需要开发者账号和商店审核。
 
 ## 路线图（暂不进入 V1）
 
