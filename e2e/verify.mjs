@@ -226,9 +226,12 @@ try {
         return el ? el.getBoundingClientRect().top + window.scrollY : null;
       },
       SLOW,
-    );
+  );
   const beforeSlow = await slowTop();
-  await page.click('#slow-transform');
+  // A highlight moved by the previous transform test can overlap this fixture
+  // control on narrower CI viewports. Trigger the fixture action directly so
+  // this assertion tests transition completion rather than pointer hit-testing.
+  await page.locator('#slow-transform').evaluate((button) => button.click());
   await page.waitForTimeout(1900); // 1s transition + end event + 300ms debounce
   const afterSlow = await slowTop();
   check(
@@ -238,7 +241,7 @@ try {
   );
   // Restore: the translated highlight physically covers controls below it —
   // later clicks (e.g. #shadow-move) would hit the .hl instead.
-  await page.click('#slow-transform');
+  await page.locator('#slow-transform').evaluate((button) => button.click());
   await page.waitForTimeout(1400);
 
   // Node MOVE while staying connected: exactly one highlight, box follows.
