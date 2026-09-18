@@ -31,12 +31,24 @@ interface MatchEntry {
   start: number;
   end: number;
   els: HTMLDivElement[]; // one highlight box per client rect (wrapping = N)
+  /**
+   * Scroll anchors, classified once at entry creation (refreshed on full
+   * reposition passes): 'viewport' = a fixed/sticky ancestor moves relative
+   * to the DOCUMENT when the window scrolls; scroller = nearest scrollable
+   * ancestor — its inner scrolls move the text relative to the document.
+   * Page-absolute boxes go stale in exactly those two cases; everything
+   * else stays correct without any scroll handling.
+   */
+  viewportAnchored: boolean;
+  scroller: Element | null;
 }
 
 const MAX_MATCHES = 500;
 const MO_DEBOUNCE_MS = 200;
 const REPOSITION_DEBOUNCE_MS = 300;
 const IDLE_BUDGET_MS = 8; // scan work budget per idle tick
+const SCROLL_MIN_INTERVAL_MS = 50; // ≤20 subset passes/s during continuous scroll
+const SCROLL_SETTLE_MS = 150; // final pass after the last scroll event
 
 export class LensScanner {
   private readonly nodeMatches = new Map<Text, MatchEntry[]>();
@@ -50,6 +62,14 @@ export class LensScanner {
   private liveMatches = 0;
   private capLogged = false;
   private startedAt = 0;
+  /** Entries whose boxes go stale on some scroll (fixed/sticky ancestors or
+   *  a scrollable ancestor container). Usually a small subset — often empty. */
+  private readonly scrollSensitive = new Set<MatchEntry>();
+  private scrollRaf = 0;
+  private lastScrollPassAt = 0;
+  private scrollSettleTimer: number | null = null;
+  private scrollWindowDirty = false;
+  private readonly scrollTargets = new Set<Element>();
 
   constructor(private readonly overlay: OverlayLayer) {}
 
@@ -60,6 +80,10 @@ export class LensScanner {
     this.scheduleInitialScan();
     this.observe();
     window.addEventListener('resize', this.scheduleReposition);
+    // Fixed/sticky/inner-scroller content moves relative to the document on
+    // scroll — page-absolute boxes go stale for that (small) subset. See the
+    // scroll handler below; pages without such matches pay nothing.
+    window.addEventListener('scroll', this.onScrollCapture, { capture: true, passive: true });
     // Late font loading shifts text — recompute all rects once fonts settle.
     document.fonts?.ready.then(() => this.scheduleReposition());
     // Layout-only shifts (image load, accordions, class/style toggles)
@@ -180,8 +204,10 @@ export class LensScanner {
         start: v.start,
         end: v.end,
         els: [],
+        viewportAnchored: false,
+        scroller: null,
       };
-      this.positionEntry(entry);
+      this.positionEntry(entry, true); // classify anchors at creation
       entries.push(entry);
       this.liveMatches++;
     }
@@ -200,8 +226,10 @@ export class LensScanner {
    *  node changed underneath us and the range is no longer valid.
    *  Existing boxes are UPDATED in place, never destroyed — repositioning
    *  runs on every layout shift, and replacing nodes would churn hover
-   *  state (found by review round 2: the card stopped opening). */
-  private positionEntry(entry: MatchEntry): void {
+   *  state (found by review round 2: the card stopped opening).
+   *  `reclassify` (full passes only) re-walks the ancestor chain — anchors
+   *  can change when class/style mutations reposition content. */
+  private positionEntry(entry: MatchEntry, reclassify = false): void {
     let rects: DOMRect[];
     try {
       const range = document.createRange();
@@ -214,6 +242,7 @@ export class LensScanner {
       this.dropEntry(entry);
       return;
     }
+    if (reclassify) this.classifyAnchor(entry);
     // Sync box count to the (possibly changed) rect count, then update.
     while (entry.els.length > rects.length) this.overlay.release(entry.els.pop()!);
     while (entry.els.length < rects.length) {
@@ -224,7 +253,33 @@ export class LensScanner {
     }
   }
 
+  /** Decide whether this entry needs scroll-driven repositioning, and by
+   *  which kind of scroll. One ancestor walk, capped by the tree depth. */
+  private classifyAnchor(entry: MatchEntry): void {
+    let el = entry.node.parentElement;
+    let scroller: Element | null = null;
+    let viewport = false;
+    while (el && el !== document.documentElement) {
+      if (!scroller || !viewport) {
+        const cs = getComputedStyle(el);
+        if (!scroller && (cs.overflowY === 'auto' || cs.overflowY === 'scroll' ||
+            cs.overflowX === 'auto' || cs.overflowX === 'scroll')) {
+          scroller = el;
+        }
+        if (!viewport && (cs.position === 'fixed' || cs.position === 'sticky')) {
+          viewport = true;
+        }
+      }
+      el = el.parentElement;
+    }
+    entry.scroller = scroller;
+    entry.viewportAnchored = viewport;
+    if (viewport || scroller) this.scrollSensitive.add(entry);
+    else this.scrollSensitive.delete(entry);
+  }
+
   private dropEntry(entry: MatchEntry): void {
+    this.scrollSensitive.delete(entry);
     for (const el of entry.els) this.overlay.release(el);
     entry.els = [];
     const siblings = this.nodeMatches.get(entry.node);
@@ -233,6 +288,59 @@ export class LensScanner {
     if (idx !== -1) siblings.splice(idx, 1);
     if (siblings.length === 0) this.nodeMatches.delete(entry.node);
     this.liveMatches--;
+  }
+
+  // ---- scroll-driven subset repositioning ---------------------------------
+
+  /** Capture-phase scroll listener: mark what moved, coalesce to one subset
+   *  pass per animation frame (plus one settle pass). Entries without scroll
+   *  anchors are never touched; pages without any pay a Set.size check. */
+  private readonly onScrollCapture = (e: Event): void => {
+    if (this.scrollSensitive.size === 0) return;
+    const t = e.target;
+    if (t instanceof Element && t !== document.documentElement && t !== document.body) {
+      this.scrollTargets.add(t);
+    } else {
+      this.scrollWindowDirty = true; // root scroller (document/documentElement/body)
+    }
+    if (this.scrollRaf === 0) {
+      const now = performance.now();
+      const wait = Math.max(0, SCROLL_MIN_INTERVAL_MS - (now - this.lastScrollPassAt));
+      this.scrollRaf = window.setTimeout(() => {
+        this.scrollRaf = 0;
+        this.runScrollPass();
+      }, wait) as unknown as number;
+    }
+    if (this.scrollSettleTimer !== null) clearTimeout(this.scrollSettleTimer);
+    this.scrollSettleTimer = window.setTimeout(() => {
+      this.scrollSettleTimer = null;
+      this.runScrollPass();
+    }, SCROLL_SETTLE_MS);
+  };
+
+  private runScrollPass(): void {
+    if (this.scrollSettleTimer !== null) {
+      clearTimeout(this.scrollSettleTimer);
+      this.scrollSettleTimer = null;
+    }
+    if (this.scrollSensitive.size === 0) return;
+    const windowDirty = this.scrollWindowDirty;
+    const targets = [...this.scrollTargets];
+    this.scrollWindowDirty = false;
+    this.scrollTargets.clear();
+    this.lastScrollPassAt = performance.now();
+    for (const entry of this.scrollSensitive) {
+      if (windowDirty && entry.viewportAnchored) {
+        this.positionEntry(entry);
+        continue;
+      }
+      if (targets.length > 0 && entry.scroller) {
+        const s = entry.scroller;
+        if (targets.some((t) => t === s || t.contains(s) || s.contains(t))) {
+          this.positionEntry(entry);
+        }
+      }
+    }
   }
 
   // ---- incremental updates ------------------------------------------------
@@ -332,7 +440,10 @@ export class LensScanner {
     //    SAME node later, and it must rescan then.
     for (const [node, entries] of this.nodeMatches) {
       if (!this.inScope(node)) {
-        for (const e of entries) for (const el of e.els) this.overlay.release(el);
+        for (const e of entries) {
+          this.scrollSensitive.delete(e);
+          for (const el of e.els) this.overlay.release(el);
+        }
         this.liveMatches -= entries.length;
         this.nodeMatches.delete(node);
         this.processed.delete(node);
@@ -374,7 +485,10 @@ export class LensScanner {
   private invalidate(node: Text): void {
     const entries = this.nodeMatches.get(node);
     if (entries) {
-      for (const e of entries) for (const el of e.els) this.overlay.release(el);
+      for (const e of entries) {
+        this.scrollSensitive.delete(e);
+        for (const el of e.els) this.overlay.release(el);
+      }
       this.liveMatches -= entries.length;
       this.nodeMatches.delete(node);
     }
@@ -384,7 +498,7 @@ export class LensScanner {
 
   private repositionAll(): void {
     for (const entries of this.nodeMatches.values()) {
-      for (const e of [...entries]) this.positionEntry(e);
+      for (const e of [...entries]) this.positionEntry(e, true);
     }
   }
 }

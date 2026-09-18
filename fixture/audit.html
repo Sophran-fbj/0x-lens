@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>0x Lens — nightly audit fixture</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 860px; margin: 32px auto; padding: 0 16px; color: #1c1f26; }
+    h1 { font-size: 18px; } h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; }
+    section { margin: 28px 0; padding: 8px; border: 1px dashed #e5e7eb; }
+    .addr { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    button { padding: 6px 12px; cursor: pointer; margin: 2px; }
+    .mono-col { width: 92px; overflow-wrap: anywhere; }
+    #g4-target { transition: margin-top .3s linear; }
+    #g4-target.moved { margin-top: 64px; }
+    @keyframes audit-slide { from { transform: translateX(0); } to { transform: translateX(48px); } }
+    #g5-target.animated { animation: audit-slide .6s ease-in-out; }
+    #g9-accordion-body { display: none; }
+    #l9-accordion.open #g9-accordion-body { display: block; }
+    #g10-sticky-head { position: sticky; top: 0; background: #fff; padding: 6px 0; border-bottom: 1px solid #ddd; }
+    #g11-fixed-box { position: fixed; right: 12px; bottom: 12px; background: #fff; border: 1px solid #ddd; padding: 6px; }
+    #g12-scroller { height: 180px; overflow: auto; border: 1px solid #ccc; }
+    #g13-outer { height: 220px; overflow: auto; border: 1px solid #bbb; }
+    #g13-inner { height: 400px; overflow: auto; margin: 12px; }
+    #g14-hscroll { width: 240px; overflow-x: auto; border: 1px solid #ccc; white-space: nowrap; }
+    #g15-collapse { display: none; }
+    #g15-collapse.shown { display: block; }
+    .tall-gap { height: 900px; }
+  </style>
+</head>
+<body>
+  <h1>0x Lens nightly audit fixture</h1>
+  <p>Every scenario lives in its own section. Buttons drive post-scan lifecycle/geometry scenarios.</p>
+
+  <section id="sec-detect"><h2>Detection matrix</h2><div id="detect-root"></div></section>
+
+  <section id="sec-lifecycle">
+    <h2>DOM lifecycle</h2>
+    <p><button id="l1-burst-char">charData burst</button>
+       <button id="l2-burst-child">childList burst</button>
+       <button id="l3-cycles">100 add/remove cycles</button>
+       <button id="l4-move">move between parents</button>
+       <button id="l5-vlist">virtual-list recycle</button></p>
+    <p><button id="l6-hydration">react-style hydration</button>
+       <button id="l7-recreate">vue-style re-create</button>
+       <button id="l8-pushstate">pushState + inject</button></p>
+    <p id="l1-node" class="addr">stable text, no identity yet</p>
+    <div id="l2-root"></div>
+    <div id="l3-root"></div>
+    <div style="display:flex; gap:24px">
+      <div id="l4-a" style="min-height:20px"><p id="l4-node" class="addr"></p></div>
+      <div id="l4-b" style="min-height:20px"></div>
+    </div>
+    <div id="l5-root"></div>
+    <div id="l6-root"><p class="addr" id="l6-node">hydration placeholder</p></div>
+    <div id="l7-root"></div>
+    <div id="l8-root"></div>
+    <div id="l9-accordion">
+      <button id="l9-btn">toggle accordion</button>
+      <div id="g9-accordion-body">
+        <p class="addr">accordion holds 0x0DF243e3CC3A8C3163d0282BB5F54A39b67D5014 (A33)</p>
+      </div>
+    </div>
+    <p><button id="l12-detached">detached subtree swap</button></p>
+    <div id="l12-root"><p id="l12-node" class="addr">detached-subtree original 0x525B5d569E9cF255678c5557397920f56650B5fA (A35)</p></div>
+    <p><button id="l13-shadowbtn">node into shadow (and back)</button></p>
+    <div id="l13-src"><p id="l13-node" class="addr">shadow round-trip 0x303B619f43Ba9b9F8814fE7B759b84ABD6eb0d60 (A12)</p></div>
+    <div id="l13-host"></div>
+  </section>
+
+  <section id="sec-geometry">
+    <h2>Geometry &amp; scroll</h2>
+    <p><button id="g4-btn">transition move</button>
+       <button id="g5-btn">keyframe move</button>
+       <button id="g6-btn">load custom font</button>
+       <button id="g7-btn">expand image (layout shift)</button>
+       <button id="g15-btn">display:none toggle</button></p>
+    <p id="g1-node" class="addr">single-line rect probe 0xBC8423D62000F83C1c887c945A267971E26F8772</p>
+    <div class="mono-col"><p id="g2-node" class="addr">multiline wrap probe 0x412B25503Ae1AB1C6C6bEeBAAD91FC7053fC97d1</p></div>
+    <div id="g3-wrap" style="transform: translateY(37px)"><p id="g3-node" class="addr">transformed ancestor probe 0x13c321EbE0042C0B75Ef29d6e9aB9416247bEf27</p></div>
+    <p id="g4-target" class="addr">transition probe 0x6Ff15DEf92CA9f7B76E417FB03bD2C692b668EfA</p>
+    <p id="g5-target" class="addr">keyframe probe 0xE317a448d0331A4093bd2d0a23F35A72B0385241</p>
+    <p id="g6-node" class="addr">font probe 0xD2e6F87A340Be85E888D224D8bf2EdFBe63ed797</p>
+    <div id="g7-imgwrap"><p id="g7-node" class="addr">image-shift probe 0x5048693EB8DBD11A62Dd694C176f0eAe54314Dae</p></div>
+    <div id="g15-collapse"><p id="g15-node" class="addr">hidden-visibility probe 0x602EE9d6aFa8a3315D0EB95a9Df61Fec3beA3Ce7 (A22)</p></div>
+
+    <div class="tall-gap"></div>
+    <div id="g10-sticky-head"><p id="g10-node" class="addr">sticky probe 0xDD103851f4E94f8292203a153eC97BFc845d6fC5</p></div>
+    <div class="tall-gap"></div>
+  </section>
+
+  <div id="g11-fixed-box"><p id="g11-node" class="addr">fixed probe 0xa30D3776D5e9A1A9D40b4BD107AE5f504F5F2199</p></div>
+
+  <section>
+    <h2>Nested scrollers</h2>
+    <div id="g12-scroller"></div>
+    <p><button id="g12-btn">scroll inner container</button></p>
+    <div id="g13-outer"><div id="g13-inner"></div></div>
+    <p><button id="g13-btn">scroll nested containers</button></p>
+    <div id="g14-hscroll"><p id="g14-node" class="addr">horizontal probe</p></div>
+    <p><button id="g14-btn">scroll right</button></p>
+  </section>
+
+  <script>
+    // ---- deterministic EIP-55 addresses (generated via viem) ----------------
+    const ADDRS = ["0xF427EBdf59e4eC6810417B50E97dE4a668f971ff","0x2bD9d63642dbc5F920ECbbB75b94460e91e0182B","0xa7d37E6367751c77DA31b63430Aa4611689C020B","0x4659c414EdAACD3e0170DB521a31F19e2DBebA3e","0xFC47ee8fe0376830B5219b91bA52F7eA9071feb2","0x283AcA4f9e6Bd7F624592FAcc7cD36968D496463","0x1c6B50B65b149Fb6e2003855ec5E01011E145419","0x95A05587Aea3452B18E91b96188E3D118aB8032d","0x6f556DD22EdEb8E1E7Be77D7A9CfCAaa996f07FC","0x7EE5c0e3f733d2c3Cfb508Ed9C9dC03933E0794d","0x3a7A435a45C8AB49FCbF9b5471cE73aDd0f5cFFE","0xa420670F8B83276D452E192a6B4922C4E8e2321F","0x303B619f43Ba9b9F8814fE7B759b84ABD6eb0d60","0x4d5F4b206921c330b0b6A7B34311C2c1Fd027F98","0x4ac02e705b26bb507856cfF9f52ea26Ac53E2813","0x05BC6b7899C49bB60567bB9732ED28eaAd15abfC","0xBC8423D62000F83C1c887c945A267971E26F8772","0x6ed4C598385601a4Ce6374F66Cd00f5d80B88D73","0xAe25A12b921147a72793601f3d6Ae1705E52625D","0x1857b9dDBc7BB462246D5390DBCE9A989Fe42088","0x412B25503Ae1AB1C6C6bEeBAAD91FC7053fC97d1","0xc6EEBfA49C31358a741e725fF77FC50e0b84eEeB","0x602EE9d6aFa8a3315D0EB95a9Df61Fec3beA3Ce7","0x6Ff15DEf92CA9f7B76E417FB03bD2C692b668EfA","0xE317a448d0331A4093bd2d0a23F35A72B0385241","0x1623113b8ceC7Cd2EE99F9B294461CF90720f8E5","0xD2e6F87A340Be85E888D224D8bf2EdFBe63ed797","0x5048693EB8DBD11A62Dd694C176f0eAe54314Dae","0xDD103851f4E94f8292203a153eC97BFc845d6fC5","0xa30D3776D5e9A1A9D40b4BD107AE5f504F5F2199","0x8a9197D27f3eE01fAB61D27057bC25D61Ab1ba00","0xd21877e3A1379E4303a20d3bFF71eAb40771c52D","0x756F99c7FefB1bD32D26eafCb2Cc7B471bAf7726","0x0DF243e3CC3A8C3163d0282BB5F54A39b67D5014","0x13c321EbE0042C0B75Ef29d6e9aB9416247bEf27","0x525B5d569E9cF255678c5557397920f56650B5fA","0xC3AaD5CB8fFf2546Ea039E28f3259592F07A91E2","0xB58D31e0aDce6679a11AFf0e276f5C03cC808aB2","0x8b2E405970309C94B8a1979B129298bcE143b53e","0x87f89589bc3e899A49E8e394A21E97ab4c0eC8f0","0x9A4B367A216cEA401CB2c2C578324935c78B346b","0xD59f4eFA67616b79dfe73102DE0f495FDD56b019","0xba3C8d78815327A2EdE5652718B932cb3A5bD7B6","0xc9E8C9C3F67E511C75E372f4fe30563FD24e0Ee0","0xCFC359E6E777857b8F88aA3eAA1604E81b9D0918","0x241C032236E29D56488A89539B9A48B1A7dD476C"];
+    const A = (i) => ADDRS[i];
+    const truncOf = (addr) => `0x${addr.slice(2, 6)}…${addr.slice(-4)}`;
+    const h = (tag, attrs = {}, text) => {
+      const el = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      if (text !== undefined) el.textContent = text;
+      return el;
+    };
+    const P = (id, cls, text) => { const p = h('p', { id, class: cls }, text); return p; };
+
+    // ---- detection matrix (all present BEFORE the content script scans) -----
+    const root = document.getElementById('detect-root');
+    // d1 lowercase (positive)
+    root.append(P('d1', 'addr', A(1).toLowerCase()));
+    // d2 all-uppercase HEX (positive; the 0x prefix stays lowercase)
+    root.append(P('d2', 'addr', '0x' + A(2).slice(2).toUpperCase()));
+    // d3 correct mixed-case checksum (positive)
+    root.append(P('d3', 'addr', A(3)));
+    // d4 broken checksum: flip first hex letter case (negative)
+    {
+      const broken = A(4).split('');
+      for (let i = 2; i < broken.length; i++) {
+        if (/[a-f]/.test(broken[i])) { broken[i] = broken[i].toUpperCase(); break; }
+        if (/[A-F]/.test(broken[i])) { broken[i] = broken[i].toLowerCase(); break; }
+      }
+      root.append(P('d4', 'addr', broken.join('')));
+    }
+    // d5 two addresses in ONE text node (positive ×2)
+    root.append(P('d5', 'addr', `pair ${A(5)} and ${A(6)} end`));
+    // d6 adjacent addresses separated by punctuation (positive ×2)
+    root.append(P('d6', 'addr', `${A(7)},${A(8)}`));
+    // d7 punctuation wrap (positive ×1)
+    root.append(P('d7', 'addr', `(${A(9)}).`));
+    // d8 line break inside one text node (positive ×2, one may split into 2 rects)
+    root.append(P('d8', 'addr', `${A(17)}\n${A(18)}`));
+    document.getElementById('d8').style.whiteSpace = 'pre-wrap';
+    // d9 multi-rect: narrow column forces wrapping of ONE address (≥2 boxes)
+    {
+      const col = h('div', { class: 'mono-col' });
+      col.append(P('d9', 'addr', A(10)));
+      root.append(col);
+    }
+    // d10 truncated + matching href (positive)
+    root.append(h('a', { href: `https://etherscan.io/address/${A(11)}`, class: 'addr' }, truncOf(A(11))));
+    // d11 truncated prefix mismatch vs href (negative: A36 nowhere highlighted)
+    root.append(h('a', { href: `https://etherscan.io/address/${A(12)}`, class: 'addr' }, truncOf(A(36))));
+    // d12 truncated suffix mismatch vs href (negative: A37 nowhere highlighted)
+    root.append(h('a', { href: `https://etherscan.io/address/${A(12)}`, class: 'addr' },
+      `0x${A(12).slice(2, 6)}…${A(37).slice(-4)}`));
+    // d13 href with several addresses, consistent one wins (positive)
+    root.append(h('a', { href: `https://etherscan.io/token/${A(14)}?a=${A(15)}`, class: 'addr' }, truncOf(A(15))));
+    // d15 href REPLACED later: identity must follow the new href (button below)
+    {
+      const link = h('a', { id: 'd15-link', href: `https://etherscan.io/address/${A(13)}`, class: 'addr' }, truncOf(A(13)));
+      root.append(link);
+      const btn = h('button', { id: 'd15-btn' }, 'replace href');
+      btn.addEventListener('click', () => {
+        link.setAttribute('href', `https://etherscan.io/address/${A(14)}`);
+        link.textContent = truncOf(A(14));
+      });
+      root.append(btn);
+    }
+    // d16 ENS name (positive), d17 0x-prefixed ENS (name, positive)
+    root.append(P('d16', 'addr', 'audit-name-one.eth'));
+    root.append(P('d17', 'addr', '0xdeadbeef.eth'));
+    // d18 email domains (negative)
+    root.append(P('d18', 'addr', 'mail user@audited-email.eth and x@sub.audited-email.eth end'));
+    // d19 unregistered name (detection positive)
+    root.append(P('d19', 'addr', 'definitely-not-registered-audit.eth'));
+    // d20 unicode / emoji ENS — documented V1 limitation: must NOT highlight
+    root.append(P('d20', 'addr', 'éxample.eth 🤩.eth'));
+    // d21 script/style/noscript/template with addresses (all negative)
+    {
+      const s = document.createElement('script');
+      s.textContent = `window.__leakProbe = { script: '${A(19)}' };`;
+      root.append(s);
+      const st = h('style', {}, `.x::before { content: '${A(19)}'; }`);
+      root.append(st);
+      const ns = document.createElement('noscript');
+      ns.textContent = A(19);
+      root.append(ns);
+      const tp = document.createElement('template');
+      tp.innerHTML = `<p class="addr">${A(19)}</p>`;
+      root.append(tp);
+    }
+    // d22 textarea + input (negative)
+    {
+      const ta = h('textarea', { id: 'd22-ta', cols: 50 });
+      ta.value = `${A(19)} inside textarea`;
+      root.append(ta);
+      const inp = h('input', { id: 'd22-in', size: 60 });
+      inp.value = `${A(19)} inside input`;
+      root.append(inp);
+    }
+    // d23 contenteditable (negative)
+    {
+      const ce = h('div', { id: 'd23-ce', contenteditable: 'true', class: 'addr' }, `${A(19)} editable`);
+      root.append(ce);
+    }
+    // d24 hidden (display:none) address — highlight appears only when visible
+    {
+      const wrap = h('div', { id: 'd24-wrap' });
+      wrap.style.display = 'none';
+      wrap.append(P('d24', 'addr', A(20)));
+      root.append(wrap);
+    }
+    // d25 empty text node (no crash)
+    root.append(h('p', { id: 'd25' }, ''));
+    // d26 huge text node with one late address (bounded scan time)
+    {
+      const big = 'x'.repeat(1000 * 1024) + ` tail ${A(21)} end`;
+      root.append(P('d26', 'addr', big));
+    }
+
+    // ---- lifecycle controls -------------------------------------------------
+    const $ = (id) => document.getElementById(id);
+    $('l1-burst-char').addEventListener('click', () => {
+      const n = $('l1-node');
+      for (let i = 0; i < 50; i++) n.textContent = `burst ${i} without identity`;
+      n.textContent = `settled with ${A(0)}`;
+    });
+    $('l2-burst-child').addEventListener('click', () => {
+      const r = $('l2-root');
+      for (let i = 0; i < 50; i++) {
+        const p = h('p', { class: 'addr' }, `churn ${i} ${A(22)}`);
+        r.append(p);
+        if (i < 45) p.remove();
+      }
+    });
+    let l3On = false;
+    $('l3-cycles').addEventListener('click', () => {
+      const r = $('l3-root');
+      // 100 synchronous append+remove rounds — leak probe for overlay entries.
+      for (let i = 0; i < 100; i++) {
+        const p = h('p', { class: 'addr' }, `cycle ${A(40)}`);
+        r.append(p);
+        p.remove();
+      }
+    });
+    let l4Toggle = false;
+    $('l4-move').addEventListener('click', () => {
+      const n = $('l4-node');
+      n.textContent = `moved identity ${A(41)}`;
+      (l4Toggle ? $('l4-a') : $('l4-b')).append(n);
+      l4Toggle = !l4Toggle;
+    });
+    let l5Round = 0;
+    const l5Nodes = [];
+    $('l5-vlist').addEventListener('click', () => {
+      const r = $('l5-root');
+      if (l5Nodes.length === 0) {
+        for (let i = 0; i < 10; i++) { const p = h('p', { class: 'addr' }, `row ${A(25)}`); r.append(p); l5Nodes.push(p); }
+        return;
+      }
+      l5Round++;
+      // recycle the SAME text nodes with NEW identities (virtual-list reuse)
+      l5Nodes.forEach((p, i) => { p.textContent = `row r${l5Round} ${A(25 + ((i + l5Round) % 14))}`; });
+    });
+    $('l6-hydration').addEventListener('click', () => {
+      // react-style: text node swapped for an identical-looking one
+      const n = $('l6-node');
+      n.textContent = `hydration identity ${A(38)}`;
+      const fresh = n.cloneNode(true);
+      n.replaceWith(fresh);
+    });
+    $('l7-recreate').addEventListener('click', () => {
+      // vue-style: whole subtree re-created
+      const r = $('l7-root');
+      r.replaceChildren();
+      r.append(P(null, 'addr', `re-created identity ${A(42)}`));
+    });
+    $('l8-pushstate').addEventListener('click', () => {
+      history.pushState({ s: 1 }, '', '#l8');
+      $('l8-root').append(P(null, 'addr', `pushstate identity ${A(39)}`));
+    });
+    let l9Open = false;
+    $('l9-btn').addEventListener('click', () => {
+      l9Open = !l9Open;
+      $('l9-accordion').classList.toggle('open');
+    });
+    let l12Out = false;
+    $('l12-detached').addEventListener('click', () => {
+      const n = $('l12-node');
+      if (!l12Out) {
+        l12Out = true;
+        const parent = n.parentElement;
+        n.remove(); // detached now: mutations below are invisible to the MO
+        n.textContent = `swapped while detached ${A(29)}`;
+        n.dataset.swapped = '1';
+        parent.append(n);
+      } else {
+        l12Out = false;
+        const parent = n.parentElement;
+        n.remove();
+        n.textContent = `detached-subtree original ${A(35)}`;
+        delete n.dataset.swapped;
+        parent.append(n);
+      }
+    });
+    let l13In = false;
+    const l13Node = $('l13-node'); // held reference: getElementById can't see shadow trees
+    $('l13-shadowbtn').addEventListener('click', () => {
+      if (!$('l13-host').shadowRoot) {
+        $('l13-host').attachShadow({ mode: 'open' }).append(h('div', { id: 'dest' }, 'shadow dest'));
+      }
+      if (!l13In) { $('l13-host').shadowRoot.getElementById('dest').append(l13Node); l13In = true; }
+      else { $('l13-src').append(l13Node); l13In = false; }
+    });
+
+    // ---- geometry controls --------------------------------------------------
+    $('g4-btn').addEventListener('click', () => $('g4-target').classList.toggle('moved'));
+    $('g5-btn').addEventListener('click', () => {
+      const t = $('g5-target');
+      t.classList.remove('animated'); void t.offsetWidth; t.classList.add('animated');
+    });
+    $('g6-btn').addEventListener('click', async () => {
+      const face = new FontFace('AuditFont', 'local("Courier New")');
+      await face.load();
+      document.fonts.add(face);
+      $('g6-node').style.fontFamily = 'AuditFont, monospace';
+      $('g6-node').style.fontSize = '22px';
+    });
+    $('g7-btn').addEventListener('click', () => {
+      const img = h('img', { id: 'g7-img' });
+      // 1×600 px transparent PNG expands to 600px height on load → layout shift
+      img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAABkCAYAAABHLFQjAAAAEUlEQVR4nGP8z8DAwMDAxIAEAAc0AAE1nLcAAAAASUVORK5CYII=';
+      img.style.width = '1px';
+      img.style.height = '600px';
+      $('g7-imgwrap').prepend(img);
+    });
+    $('g15-btn').addEventListener('click', () => $('g15-collapse').classList.toggle('shown'));
+
+    // scroller contents (built here so the page stays readable)
+    {
+      const r = $('g12-scroller');
+      for (let i = 0; i < 30; i++) {
+        r.append(P(null, 'addr', i === 15 ? `inner scroller identity ${A(30)}` : `filler row ${i} without identity`));
+      }
+      $('g12-btn').addEventListener('click', () => { r.scrollTop = 12 * 34; });
+    }
+    {
+      const inner = $('g13-inner');
+      for (let i = 0; i < 24; i++) {
+        inner.append(P(null, 'addr', i === 18 ? `nested identity ${A(31)}` : `nested filler ${i}`));
+      }
+      const outer = $('g13-outer');
+      for (let i = 0; i < 6; i++) { const d = h('div', {}, `outer filler ${i}`); inner.parentElement.insertBefore(d, inner); }
+      $('g13-btn').addEventListener('click', () => { inner.scrollTop = 16 * 34; outer.scrollTop = 40; });
+    }
+    {
+      $('g14-node').textContent = `horizontal probe ${A(32)} ${'—'.repeat(80)}`;
+      $('g14-btn').addEventListener('click', () => { $('g14-hscroll').scrollLeft = 400; });
+    }
+
+    // expose the address table for e2e assertions
+    window.__auditAddrs = ADDRS;
+  </script>
+</body>
+</html>
