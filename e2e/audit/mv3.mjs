@@ -130,19 +130,13 @@ try {
     JSON.stringify(Object.keys(preKeys)));
 
   await panel.evaluate(() => chrome.runtime.reload());
-  // the reload destroys the old panel page. chrome-extension:// navigations
-  // stay ERR_BLOCKED_BY_CLIENT until the reloaded extension is serving again
-  // — CI runners need far longer than the local ~2s. First wait for a
-  // background service worker to (re)appear, then open the fresh panel with
-  // the retrying helper.
+  // the reload destroys the old panel page — open a fresh one. After a
+  // reload the MV3 service worker starts LAZILY (nothing wakes it until a
+  // page or message arrives), so waiting for a worker first would deadlock:
+  // opening the page IS what re-activates the extension. Retry the
+  // navigation itself with a generous budget — ERR_BLOCKED_BY_CLIENT
+  // persists far longer on CI runners than the local ~2s.
   await page.waitForTimeout(1800);
-  const swDeadline = Date.now() + 30_000;
-  while (!ctx.serviceWorkers().some((w) => w.url().includes('background.js'))) {
-    if (Date.now() > swDeadline) {
-      throw new Error('no background service worker registered after extension reload');
-    }
-    await page.waitForTimeout(250);
-  }
   panel = await openExtensionPage(`chrome-extension://${extId}/sidepanel.html`);
   await panel.waitForTimeout(500);
 
