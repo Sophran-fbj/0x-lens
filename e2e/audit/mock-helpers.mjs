@@ -141,12 +141,21 @@ export function cardHelpers(page) {
   };
 
   /** Single-hop variant: no intermediate mouseover targets, so the intent
-   *  can never be stolen by a box the interpolated path happens to cross. */
+   *  can never be stolen by a box the interpolated path happens to cross.
+   *  The center is recomputed right before the move — layout can shift
+   *  between scrollIntoView and the move (font metrics differ on CI
+   *  runners). Returns the point actually used. */
   const hoverDirect = async (address) => {
-    const c = await hoverAddress(address);
-    if (!c) throw new Error(`no highlight for ${address}`);
+    if (!(await hoverAddress(address))) throw new Error(`no highlight for ${address}`);
     await page.waitForTimeout(400); // let scroll-settling + repositions finish
+    const c = await page.evaluate((a) => {
+      const root = document.querySelector('[data-0x-lens-overlay]')?.shadowRoot;
+      const b = root?.querySelector(`.hl[data-address="${a}"]`)?.getBoundingClientRect();
+      return b ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
+    }, address);
+    if (!c) throw new Error(`highlight vanished before hover: ${address}`);
     await page.mouse.move(c.x, c.y, { steps: 1 });
+    return c;
   };
 
   const hoverEns = async (name) => {

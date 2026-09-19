@@ -121,17 +121,30 @@ try {
   await card.hoverDirect(SLOW); // leave the synthetic hover on an unrelated box
   await page.waitForTimeout(900); // intent + scan + card show with skeleton
   await card.moveAway(); // fully close A's card before approaching B
-  await card.hoverDirect(FAST);
+  const fastPt = await card.hoverDirect(FAST);
   try {
     await card.waitForCard(FAST.slice(0, 6), 8000); // B's own address in header
   } catch {
-    const st = await page.evaluate(([slow, fast]) => ({
+    const st = await page.evaluate(([slow, fast, pt]) => ({
       card: document.querySelector('[data-0x-lens-card]')?.shadowRoot?.querySelector('.oxl-card')?.textContent?.slice(0, 80) ?? null,
+      cardHostMounted: Boolean(document.querySelector('[data-0x-lens-card]')),
+      hoveredEl: pt ? (() => {
+        // elementFromPoint retargets shadow content to its host — pierce
+        // one level to see whether the .hl box itself is under the point.
+        const top = document.elementFromPoint(pt.x, pt.y);
+        const deep = top?.shadowRoot?.elementFromPoint(pt.x, pt.y);
+        return top ? `${top.tagName}${deep ? ` → ${deep.tagName}.${deep.className || ''}` : ''}` : 'none';
+      })() : 'no-pt',
+      fastBoxRect: (() => {
+        const b = document.querySelector('[data-0x-lens-overlay]')?.shadowRoot
+          ?.querySelector(`.hl[data-address="${fast}"]`)?.getBoundingClientRect();
+        return b ? { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) } : null;
+      })(),
       fastBoxes: [...document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll(`.hl[data-address="${fast}"]`)].length,
       slowBoxes: [...document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll(`.hl[data-address="${slow}"]`)].length,
       overlayHosts: document.querySelectorAll('[data-0x-lens-overlay]').length,
-    }), [SLOW, FAST]).catch((e) => String(e));
-    console.log('[s6] state on timeout:', JSON.stringify(st));
+    }), [SLOW, FAST, fastPt]).catch((e) => String(e));
+    console.log('[s6] state on timeout:', JSON.stringify({ pt: fastPt, ...st }));
     throw new Error('S6 FAST card never appeared');
   }
   await page.waitForTimeout(3000); // let A's slow response land
