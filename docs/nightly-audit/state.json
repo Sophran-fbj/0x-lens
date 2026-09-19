@@ -75,6 +75,14 @@
       "reproduction": "mock RPC rule action=hang on eth_getBalance; hover the address; time the response",
       "measured": "49.1s to RPC_TIMEOUT pre-fix (12s timeout x 4 attempts + backoff); 12.02s post-fix",
       "status": "fixed"
+    },
+    {
+      "id": "BUG-4",
+      "scenario": "hover intent killed by spurious scroll (M6-pre / CI M6)",
+      "hypothesis": "HoverController.onScroll cancels intent on ANY scroll event, including anchoring/programmatic scrolls delivered in the same input batch as the mouseover, so the card never opens",
+      "reproduction": "deterministic: hover an address, dispatch a no-movement scroll event inside the 200ms intent window (M6-pre). Real-world trigger: CI runners deliver such a scroll with every hover in the M6 race test",
+      "measured": "pre-fix: card never opened (M6 failed deterministically on CI Chromium, passed on Edge); post-fix: card opens, wheel scrolls still dismiss",
+      "status": "fixed"
     }
   ],
   "fixedProblems": [
@@ -87,6 +95,11 @@
       "id": "BUG-3",
       "fix": "chain.ts: transport http(..., { retryCount: 0 }) — one attempt, then the stable RPC_TIMEOUT code; the stale-balance refresh path already covers transient provider hiccups",
       "regression": "e2e/audit/rpc-privacy.mjs R5: RPC_TIMEOUT surfaces in ~12s (was ~49s); all other error mappings unchanged"
+    },
+    {
+      "id": "BUG-4",
+      "fix": "controller.ts: track last mouseover (target + clientX/Y) and last wheel timestamp; a scroll preserves the pending intent only when no wheel happened within 120ms AND the hovered box still contains the pointer. User wheel scrolls dismiss exactly as before (Chromium re-targets hover after wheel scrolls — that path must keep dismissing).",
+      "regression": "e2e/audit/mv3.mjs M6-pre (synthetic mid-intent scroll → card opens); M6 green on Edge and CI Chromium; card.mjs scroll-dismiss 11/11"
     }
   ],
   "unresolvedProblems": [
@@ -145,7 +158,7 @@
     "e2ePerf": "8/8 (public build)",
     "e2eCompat": "8/8 (public build)",
     "e2eRpcPrivacy": "31/31 (mock build VITE_RPC_URL=http://127.0.0.1:5178/rpc)",
-    "e2eMv3": "20/20 (mock build, Edge; on CI Chromium 16/16 + documented M5 skip per LIMIT-4)",
+    "e2eMv3": "23/23 (mock build, Edge; on CI Chromium 19/19 + documented M5 skip per LIMIT-4)",
     "manifestPermissions": "unchanged: storage, sidePanel + single RPC host permission",
     "remoteCode": "none added; no dynamic code execution added"
   },

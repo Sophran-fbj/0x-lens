@@ -140,6 +140,35 @@ try {
   await mock.config([
     { id: 'slow17', method: 'eth_getBalance', addrSub: SLOW.toLowerCase(), action: 'delay', delayMs: 2500 },
   ]);
+
+  // M6-pre: a scroll event arriving in the same input batch as the
+  // mouseover must not eat the pending intent when the box did not actually
+  // move away from the pointer (product fix — CI runners fire a real scroll
+  // event together with the hover's mouseover, deterministically).
+  {
+    const NEUTRAL = ADDRS[16];
+    const c = await card.hoverAddress(NEUTRAL);
+    check('M6-pre neutral hover target present', Boolean(c), String(c));
+    await page.waitForTimeout(300);
+    const c2 = await page.evaluate((a) => {
+      const b = document.querySelector('[data-0x-lens-overlay]')?.shadowRoot
+        ?.querySelector(`.hl[data-address="${a}"]`)?.getBoundingClientRect();
+      return b ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
+    }, NEUTRAL);
+    check('M6-pre neutral box rect resolvable', Boolean(c2));
+    await page.mouse.move(c2.x, c2.y, { steps: 1 });
+    await page.waitForTimeout(80); // inside the intent window
+    await page.evaluate(() => window.dispatchEvent(new Event('scroll')));
+    let opened = true;
+    try {
+      await card.waitForCard(NEUTRAL.slice(0, 6), 8000);
+    } catch {
+      opened = false;
+    }
+    check('M6-pre spurious scroll during intent does not kill the card', opened);
+    await card.moveAway();
+  }
+
   await card.moveAway(); // park the pointer neutrally so scrollIntoView can't
   await card.hoverDirect(SLOW); // leave the synthetic hover on an unrelated box
   await page.waitForTimeout(900); // intent + scan + card show with skeleton

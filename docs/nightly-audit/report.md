@@ -10,13 +10,14 @@
 
 ## 1. Executive summary
 
-**182 automated checks across 11 suites, all green at final validation** — plus 3 real product bugs reproduced first, fixed minimally, and locked behind regression tests:
+**182 automated checks across 11 suites, all green at final validation** — plus 4 real product bugs reproduced first, fixed minimally, and locked behind regression tests (the fourth surfaced by CI wiring after the audit itself):
 
 | Bug | Symptom | Root cause | Fix | Regression |
 |---|---|---|---|---|
 | BUG-1 | Fixed-position addresses drift up to **3267 px** under window scroll | page-absolute boxes assume viewport→document conversion is scroll-only; fixed elements violate it and nothing observed scroll | scroll-anchor classification + throttled scroll-sensitive subset reposition | `e2e/audit/geometry.mjs` G11 |
 | BUG-2 | Addresses inside `overflow:auto` containers drift **400–472 px** on inner scroll | inner scroll produces no MO record / layout-shift / transition event | same fix (scroller-anchored subset) | geometry.mjs G12/G13/G14 |
 | BUG-3 | A hung RPC leaves the card as an eternal skeleton for **~49 s** | viem retries `TimeoutError` (default `retryCount: 3`): 4 × 12 s attempts + backoff | `transport http(..., { retryCount: 0 })` — one 12 s attempt, then `RPC_TIMEOUT` | `e2e/audit/rpc-privacy.mjs` R5 |
+| BUG-4 | A hover could silently fail: a scroll event landing with the mouseover (anchoring/programmatic scrolls) cancelled the pending intent — card never opened; deterministic on CI runners | `HoverController.onScroll` cancelled on ANY scroll, even ones that never moved the hovered box | keep the pending intent for non-user-initiated scrolls while the box stays under the pointer; wheel scrolls dismiss exactly as before | `e2e/audit/mv3.mjs` M6-pre + `e2e/card.mjs` scroll-dismiss |
 
 Sticky elements were **verified covered** by the existing layout-shift observer (G10) — an interesting non-obvious finding. All other investigated scenarios passed without product changes; test-only issues found during authoring (fixture authoring bugs, address collisions, a port-hogging zombie mock server, a stale profile-cached service worker) were fixed in the tests and are documented in §7.
 
@@ -190,6 +191,12 @@ Churn: mutation burst (300 nodes), virtual-list recycle ×10, layout-shift ×10 
 - **Minimal fix** (`src/core/services/chain.ts`): `http(rpcUrl, { batch: true, timeout: 12_000, retryCount: 0 })` — one attempt, then the stable code. Transient provider hiccups remain covered by the stale-balance refresh path and by the user simply re-hovering.
 - **Regression**: R5 asserts `RPC_TIMEOUT` within 25 s (measured 12.0 s); R1–R4 confirm the other mappings still surface quickly.
 
+### BUG-4 — spurious scroll events silently kill hover intent (found wiring CI)
+- **Reproduction**: deterministic regression `e2e/audit/mv3.mjs` M6-pre — hover an address and dispatch a no-movement `scroll` event inside the 200 ms intent window → pre-fix the card never opens. The CI trigger was real, not synthetic: on ubuntu runners the M6 race test failed deterministically because Chromium delivers a scroll event in the same input batch as the hover's mouseover (anchoring/programmatic scroll), while the same sequence passes on local Edge.
+- **Root cause**: `HoverController.onScroll` (`src/core/hover/controller.ts`) cancelled intent, scan and card on ANY scroll event — including ones that never moved the hovered box relative to the pointer.
+- **Minimal fix**: track the last mouseover (target + clientX/Y) and the last `wheel` timestamp. A scroll preserves the pending intent only when the user did not initiate it (no wheel within 120 ms) AND the hovered box still contains the pointer; user wheel scrolls dismiss exactly as before (Chromium re-targets hover after a wheel scroll — that path is what the wheel check protects).
+- **Regression**: M6-pre (synthetic mid-intent scroll → card still opens); M6 green again on Edge and CI Chromium; `card.mjs` "scroll dismisses card" stays green.
+
 ---
 
 ## 5. Privacy & permissions audit
@@ -248,6 +255,6 @@ Production-code changes are limited to `src/core/scanner/scanner.ts` (BUG-1/2 fi
 | `node e2e/audit/perf.mjs` | 8/8 |
 | `node e2e/audit/compat.mjs` | 8/8 |
 | `node e2e/audit/rpc-privacy.mjs` (mock build) | 31/31 |
-| `node e2e/audit/mv3.mjs` (mock build) | 20/20 (Edge; on CI Chromium 16/16 + documented M5 skip, LIMIT-4) |
+| `node e2e/audit/mv3.mjs` (mock build) | 23/23 (Edge; on CI Chromium 19/19 + documented M5 skip, LIMIT-4) |
 
-**Total: 182 checks green across both build variants.** Fixture and mock servers stopped after runs; test browsers closed; ports 5173/5178 released; port 3100 untouched.
+**Total: 185 checks green across both build variants** (Edge basis; CI Chromium runs 184 with the documented M5 skip). Fixture and mock servers stopped after runs; test browsers closed; ports 5173/5178 released; port 3100 untouched.
