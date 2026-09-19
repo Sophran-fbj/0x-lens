@@ -229,6 +229,7 @@ Production-code changes are limited to `src/core/scanner/scanner.ts` (BUG-1/2 fi
 
 - **LIMIT-1 (harness)**: MV3 idle termination cannot be exercised under a CDP-attached harness (attached sessions disable idle shutdown; `stopAllWorkers`/`closeTarget`/serviceworker-internals Stop are ineffective or read-only there). Termination→restart is covered indirectly (cold start in every suite; `chrome.runtime.reload()` lifecycle in M5); cross-termination storage persistence relies on Chrome's documented session-scoped guarantee for `storage.session`.
 - **LIMIT-3 (new mechanism boundaries, found in review)**: the scroll-anchor classifier only recognizes `overflow: auto|scroll` ancestors. A `position: relative; overflow: hidden` container scrolled programmatically (`scrollTop = …`) is not tracked and its addresses still drift — identical to pre-fix behavior, and no real-world page pattern observed. Body-level `overflow` propagating the viewport scroller can classify an entry as scroller-anchored against the body — harmless (one extra subset reposition on inner scrolls, geometry still correct).
+- **LIMIT-4 (harness, found wiring CI)**: the extension-reload scenario (mv3 M5) is not exercisable on every browser build. After `chrome.runtime.reload()`, playwright-core 1.63's bundled Chromium (the CI browser) never serves the extension again — `chrome-extension://` pages stay `ERR_BLOCKED_BY_CLIENT` and no background worker target returns (>30 s of retries), while local Edge 153 recovers in ~2 s. The M5 group therefore runs last in the suite and is skipped with an explicit log line on such builds; the reload lifecycle remains fully covered on local Edge runs. (The product itself never calls `runtime.reload()` — this scenario was always a harness-side lifecycle probe.)
 - **Product limitations, verified intentional and safe**: unicode/emoji ENS (ASCII regex — no mis-detection, no crash); truncated addresses outside links; bytes32 `name()/symbol()` tokens → plain CONTRACT; closed shadow roots invisible to the scanner; iframes get no injection (top-frame only by design). All asserted non-crashing and non-mis-detecting in `detect.mjs`/`compat.mjs`.
 
 ## 9. Final quality gate
@@ -247,6 +248,6 @@ Production-code changes are limited to `src/core/scanner/scanner.ts` (BUG-1/2 fi
 | `node e2e/audit/perf.mjs` | 8/8 |
 | `node e2e/audit/compat.mjs` | 8/8 |
 | `node e2e/audit/rpc-privacy.mjs` (mock build) | 31/31 |
-| `node e2e/audit/mv3.mjs` (mock build) | 20/20 |
+| `node e2e/audit/mv3.mjs` (mock build) | 20/20 (Edge; on CI Chromium 16/16 + documented M5 skip, LIMIT-4) |
 
 **Total: 182 checks green across both build variants.** Fixture and mock servers stopped after runs; test browsers closed; ports 5173/5178 released; port 3100 untouched.

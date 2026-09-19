@@ -101,6 +101,11 @@
       "detail": "classifyAnchor recognizes only overflow:auto|scroll ancestors: a programmatic scrollTop change on an overflow:hidden container is not tracked (identical to pre-fix behavior); body-level overflow propagating the viewport scroller can classify an entry as scroller-anchored against the body - harmless, one extra subset reposition with correct geometry."
     },
     {
+      "id": "LIMIT-4",
+      "scope": "harness (found wiring CI)",
+      "detail": "Extension-reload scenario (mv3 M5) is not exercisable on every browser build: after chrome.runtime.reload(), playwright-core 1.63 bundled Chromium (CI) never serves the extension again (chrome-extension:// pages stay ERR_BLOCKED_BY_CLIENT, no background worker target returns, >30s), while local Edge 153 recovers in ~2s. M5 runs last and is skipped with an explicit log line on such builds; reload lifecycle remains covered on local Edge runs. The product never calls runtime.reload()."
+    },
+    {
       "id": "LIMIT-2",
       "scope": "documented product limitations, verified as non-crashing and non-mis-detecting",
       "detail": "unicode/emoji ENS (ASCII-only regex, kept as designed); truncated addresses outside links (href recovery impossible); bytes32 name()/symbol() tokens (decode fails → plain CONTRACT); closed shadow roots (scanner blind by design); iframes (top-frame-only by design)."
@@ -140,7 +145,7 @@
     "e2ePerf": "8/8 (public build)",
     "e2eCompat": "8/8 (public build)",
     "e2eRpcPrivacy": "31/31 (mock build VITE_RPC_URL=http://127.0.0.1:5178/rpc)",
-    "e2eMv3": "20/20 (mock build)",
+    "e2eMv3": "20/20 (mock build, Edge; on CI Chromium 16/16 + documented M5 skip per LIMIT-4)",
     "manifestPermissions": "unchanged: storage, sidePanel + single RPC host permission",
     "remoteCode": "none added; no dynamic code execution added"
   },
