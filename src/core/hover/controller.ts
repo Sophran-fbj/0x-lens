@@ -22,6 +22,13 @@ export class HoverController {
   private closeTimer: number | null = null;
   private scanHl: HTMLDivElement | null = null;
   private activeHl: HTMLDivElement | null = null;
+  /** Last mouseover on a highlight — clientX/Y + target, so a scroll
+   *  arriving in the same input batch can be tested against the box. */
+  private lastOver: { hl: HTMLDivElement; x: number; y: number } | null = null;
+  /** Timestamp of the last WHEEL event — distinguishes user-driven scrolls
+   *  (always dismiss) from programmatic/anchoring ones (may arrive in the
+   *  same batch as the mouseover and must not steal the hover). */
+  private lastWheelAt = 0;
   private readonly reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   constructor(
@@ -36,12 +43,14 @@ export class HoverController {
     this.cardHost.addEventListener('mouseover', this.cancelHide);
     this.cardHost.addEventListener('mouseout', this.scheduleHide);
     window.addEventListener('scroll', this.onScroll, { capture: true, passive: true });
+    window.addEventListener('wheel', this.onWheel, { capture: true, passive: true });
   }
 
   private readonly onOver = (e: MouseEvent): void => {
     const hl = closestHl(e.target);
     if (!hl || !(hl.dataset.address ?? hl.dataset.name)) return;
     this.cancelHide();
+    this.lastOver = { hl, x: e.clientX, y: e.clientY };
     if (this.activeHl === hl) return; // card already up for this box
     this.clearIntent();
     this.cancelScan();
@@ -56,7 +65,27 @@ export class HoverController {
     this.scheduleHide();
   };
 
+  private readonly onWheel = (): void => {
+    this.lastWheelAt = performance.now();
+  };
+
   private readonly onScroll = (): void => {
+    // A scroll can arrive in the same input batch as the mouseover (scroll
+    // anchoring, programmatic scrolls — observed deterministically on CI
+    // runners). When the user did NOT initiate it (no recent wheel) and the
+    // hovered box has not moved away from the pointer, it must not eat the
+    // pending intent. User wheel scrolls dismiss everything, as always.
+    if (
+      this.intentTimer !== null &&
+      this.lastOver &&
+      performance.now() - this.lastWheelAt > 120
+    ) {
+      const { hl, x, y } = this.lastOver;
+      const r = hl.getBoundingClientRect();
+      if (hl.isConnected && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return;
+      }
+    }
     this.clearIntent();
     this.cancelScan();
     this.hideNow();
