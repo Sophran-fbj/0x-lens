@@ -110,10 +110,22 @@ try {
     JSON.stringify(Object.keys(preKeys)));
 
   await panel.evaluate(() => chrome.runtime.reload());
-  // the reload destroys the old panel page — open a fresh one
+  // the reload destroys the old panel page — open a fresh one. During the
+  // reload window the extension's URL handler is briefly unavailable and the
+  // navigation fails with ERR_BLOCKED_BY_CLIENT (observed on CI runners,
+  // where the 1.8s settle wait is not always enough); retry that transient
+  // error only — anything else fails the suite immediately.
   await page.waitForTimeout(1800);
   panel = await ctx.newPage();
-  await panel.goto(`chrome-extension://${extId}/sidepanel.html`);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await panel.goto(`chrome-extension://${extId}/sidepanel.html`);
+      break;
+    } catch (e) {
+      if (attempt >= 10 || !String(e).includes('ERR_BLOCKED_BY_CLIENT')) throw e;
+      await page.waitForTimeout(500);
+    }
+  }
   await panel.waitForTimeout(500);
 
   const postKeys = await panel.evaluate(() => chrome.storage.session.get(null));
