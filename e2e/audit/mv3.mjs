@@ -128,6 +128,7 @@ try {
     const st = await page.evaluate(([slow, fast, pt]) => ({
       card: document.querySelector('[data-0x-lens-card]')?.shadowRoot?.querySelector('.oxl-card')?.textContent?.slice(0, 80) ?? null,
       cardHostMounted: Boolean(document.querySelector('[data-0x-lens-card]')),
+      cardHostHTML: document.querySelector('[data-0x-lens-card]')?.shadowRoot?.innerHTML?.slice(0, 300) ?? null,
       hoveredEl: pt ? (() => {
         // elementFromPoint retargets shadow content to its host — pierce
         // one level to see whether the .hl box itself is under the point.
@@ -145,6 +146,11 @@ try {
       overlayHosts: document.querySelectorAll('[data-0x-lens-overlay]').length,
     }), [SLOW, FAST, fastPt]).catch((e) => String(e));
     console.log('[s6] state on timeout:', JSON.stringify({ pt: fastPt, ...st }));
+    // node side: did FAST's resolve even reach the wire, and is the SW alive?
+    const s6mock = await mock.log().catch(() => null);
+    console.log('[s6] mock posts total:', s6mock?.posts?.length ?? 'n/a',
+      'tail:', JSON.stringify(s6mock?.posts?.slice(-2).map((p) => String(p.body).slice(0, 140))));
+    console.log('[s6] service workers:', JSON.stringify(ctx.serviceWorkers().map((w) => w.url())));
     throw new Error('S6 FAST card never appeared');
   }
   await page.waitForTimeout(3000); // let A's slow response land
