@@ -1,0 +1,107 @@
+{
+  "env": {
+    "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0",
+    "cores": 32,
+    "dpr": 1.0000000298023224
+  },
+  "configs": [
+    {
+      "name": "1k nodes / 10 matches",
+      "runs": 3,
+      "textNodes": 1005,
+      "matches": 10,
+      "wallMs": {
+        "median": 30,
+        "range": "29–30"
+      },
+      "mainMs": {
+        "median": 30
+      },
+      "hlCount": 10,
+      "domNodes": 1017
+    },
+    {
+      "name": "5k nodes / 100 matches",
+      "runs": 3,
+      "textNodes": 5005,
+      "matches": 100,
+      "wallMs": {
+        "median": 66,
+        "range": "57–134"
+      },
+      "mainMs": {
+        "median": 66
+      },
+      "hlCount": 100,
+      "domNodes": 5017
+    },
+    {
+      "name": "10k nodes / 500 matches",
+      "runs": 3,
+      "textNodes": 10005,
+      "matches": 500,
+      "wallMs": {
+        "median": 499,
+        "range": "468–500"
+      },
+      "mainMs": {
+        "median": 499
+      },
+      "hlCount": 500,
+      "domNodes": 10017
+    },
+    {
+      "name": "10k nodes / 600 matches (cap)",
+      "runs": 3,
+      "textNodes": 10005,
+      "matches": 500,
+      "wallMs": {
+        "median": 487,
+        "range": "478–524"
+      },
+      "mainMs": {
+        "median": 487
+      },
+      "hlCount": 500,
+      "domNodes": 10017
+    },
+    {
+      "name": "explorer table (1.8k nodes / ~150 matches)",
+      "runs": 3,
+      "textNodes": 2805,
+      "matches": 300,
+      "wallMs": {
+        "median": 177,
+        "range": "163–194"
+      },
+      "mainMs": {
+        "median": 177
+      },
+      "hlCount": 300,
+      "domNodes": 3119
+    }
+  ],
+  "churn": {
+    "base": {
+      "hl": 50,
+      "dom": 1017
+    },
+    "afterBurst": {
+      "hl": 50,
+      "dom": 1167
+    },
+    "afterVlist": {
+      "hl": 100,
+      "dom": 1217
+    },
+    "afterShift": {
+      "hl": 100,
+      "dom": 1217
+    }
+  },
+  "hover": {
+    "firstMs": 884,
+    "cachedMedianMs": 535,
+    "cachedRange": "533–535"
+  }
+}
