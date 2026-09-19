@@ -6,6 +6,8 @@ node_modules/
 *.zip
 .playwright-cli/
 .playwright-profile/
+.playwright-profile-mock*/
+fixture-server.log
 e2e/video/
 e2e/*.png
 

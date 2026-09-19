@@ -11,11 +11,11 @@
       "textNodes": 1005,
       "matches": 10,
       "wallMs": {
-        "median": 30,
-        "range": "29–30"
+        "median": 29,
+        "range": "28–86"
       },
       "mainMs": {
-        "median": 30
+        "median": 29
       },
       "hlCount": 10,
       "domNodes": 1017
@@ -26,11 +26,11 @@
       "textNodes": 5005,
       "matches": 100,
       "wallMs": {
-        "median": 66,
-        "range": "57–134"
+        "median": 64,
+        "range": "52–148"
       },
       "mainMs": {
-        "median": 66
+        "median": 64
       },
       "hlCount": 100,
       "domNodes": 5017
@@ -41,11 +41,11 @@
       "textNodes": 10005,
       "matches": 500,
       "wallMs": {
-        "median": 499,
-        "range": "468–500"
+        "median": 462,
+        "range": "449–490"
       },
       "mainMs": {
-        "median": 499
+        "median": 462
       },
       "hlCount": 500,
       "domNodes": 10017
@@ -56,11 +56,11 @@
       "textNodes": 10005,
       "matches": 500,
       "wallMs": {
-        "median": 487,
-        "range": "478–524"
+        "median": 480,
+        "range": "426–540"
       },
       "mainMs": {
-        "median": 487
+        "median": 480
       },
       "hlCount": 500,
       "domNodes": 10017
@@ -71,11 +71,11 @@
       "textNodes": 2805,
       "matches": 300,
       "wallMs": {
-        "median": 177,
-        "range": "163–194"
+        "median": 159,
+        "range": "159–190"
       },
       "mainMs": {
-        "median": 177
+        "median": 159
       },
       "hlCount": 300,
       "domNodes": 3119
@@ -100,8 +100,8 @@
     }
   },
   "hover": {
-    "firstMs": 884,
-    "cachedMedianMs": 535,
-    "cachedRange": "533–535"
+    "firstMs": 883,
+    "cachedMedianMs": 532,
+    "cachedRange": "531–537"
   }
 }

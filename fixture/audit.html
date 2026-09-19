@@ -359,6 +359,18 @@
 
     // expose the address table for e2e assertions
     window.__auditAddrs = ADDRS;
+
+    // ---- mock-RPC hover targets (rpc-privacy / mv3 suites) ------------------
+    {
+      const m = document.createElement('section');
+      m.id = 'sec-mock';
+      m.innerHTML = '<h2>Mock-RPC hover targets</h2>';
+      m.append(P('m43-lower', 'addr', ADDRS[43].toLowerCase()));
+      m.append(P('m43-check', 'addr', ADDRS[43]));
+      m.append(P('m44', 'addr', ADDRS[44]));
+      m.append(P('m45-name', 'addr', 'mock-audit-name.eth'));
+      document.body.append(m);
+    }
   </script>
 </body>
 </html>

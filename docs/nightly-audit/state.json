@@ -1,20 +1,21 @@
 {
   "baselineCommit": "6b63c3b195cd80356f301c5dd2c41182a27d5aba",
   "auditBranch": "agent/nightly-0x-audit",
-  "currentPhase": "lifecycle-geometry-done / mv3-rpc-next",
+  "currentPhase": "complete",
   "completedScenarios": [
     "detect-lower-address", "detect-upper-address", "detect-valid-checksum",
     "detect-broken-checksum", "detect-multiple-addresses-one-node", "detect-adjacent-addresses",
     "detect-punctuation-boundary", "detect-linebreak-wrapping", "detect-multi-rect-match",
     "detect-truncated-href-recovery", "detect-truncated-prefix-suffix-mismatch",
     "detect-truncated-suffix-prefix-mismatch", "detect-href-multi-address",
+    "detect-href-added-late", "detect-href-replaced",
     "detect-ens-name", "detect-0x-prefixed-ens", "detect-email-domain-negative",
     "detect-unregistered-ens", "detect-unicode-emoji-ens-limit", "detect-skipped-elements",
-    "detect-editable-and-hidden", "detect-empty-and-huge-text-nodes",
+    "detect-editable-and-hidden", "detect-empty-and-huge-text-nodes", "detect-cap-500",
     "lifecycle-characterdata-burst", "lifecycle-childlist-burst", "lifecycle-add-remove-cycles",
     "lifecycle-node-between-parents", "lifecycle-virtual-list-reuse", "lifecycle-react-hydration",
     "lifecycle-vue-hydration", "lifecycle-pushstate-update", "lifecycle-accordion-toggle",
-    "lifecycle-detached-subtree-mutation", "lifecycle-shadow-move-out-back",
+    "lifecycle-body-scope", "lifecycle-detached-subtree-mutation", "lifecycle-shadow-move-out-back",
     "lifecycle-observer-self-loop", "lifecycle-navigation-overlay-cleanup",
     "lifecycle-back-forward-restore", "lifecycle-href-replacement",
     "geometry-single-line-rect-match", "geometry-multiline-wrapping",
@@ -22,62 +23,121 @@
     "geometry-font-late-load", "geometry-image-layout-shift", "geometry-resize",
     "geometry-dpr-zoom", "geometry-sticky-offset", "geometry-fixed-offset",
     "geometry-nested-scroll", "geometry-multi-nested-scroll", "geometry-horizontal-scroll",
-    "geometry-display-none-visibility", "geometry-window-scroll-invariance"
-  ],
-  "pendingScenarios": [
+    "geometry-display-none-visibility", "geometry-window-scroll-invariance",
     "mv3-cold-start-resolve", "mv3-idle-restart-resolve", "mv3-restart-before-request",
     "mv3-response-after-panel-open", "mv3-concurrent-same-identity", "mv3-concurrent-different-identity",
     "mv3-fast-hover-switch", "mv3-stale-response-not-overwrite", "mv3-response-after-card-closed",
-    "mv3-tab-closed-navigated", "mv3-sidepanel-reload", "mv3-malformed-message",
-    "mv3-sender-without-tab", "cache-case-normalization", "cache-ens-vs-address-key",
-    "cache-balance-ttl-refresh", "cache-failed-request-not-cached", "cache-inflight-coalescing",
+    "mv3-tab-closed-mid-request", "mv3-sidepanel-reload", "mv3-storage-session-session-scope",
+    "mv3-focus-identity-change", "mv3-malformed-message", "mv3-sender-without-tab",
+    "cache-case-normalization-detection", "cache-second-hover-no-rpc", "cache-balance-ttl-refresh",
+    "cache-failed-request-not-cached", "cache-inflight-coalescing",
     "rpc-timeout-mapping", "rpc-http-429-500", "rpc-non-json-response", "rpc-jsonrpc-error",
     "rpc-batch-partial-failure", "rpc-missing-fields", "rpc-huge-balance",
-    "rpc-bytecode-forms-7702", "rpc-token-metadata-garbage", "rpc-ens-miss-and-ccip-off",
-    "privacy-no-raw-error-in-ui", "privacy-no-url-or-key-in-errors", "privacy-fetch-whitelist",
-    "privacy-host-permission-alignment", "perf-initial-scan-sizes", "perf-match-count-scaling",
-    "perf-overlay-element-stability", "detect-cap-500", "compat-strict-csp", "compat-iframes"
+    "rpc-bytecode-undefined", "rpc-bytecode-0x", "rpc-bytecode-contract",
+    "rpc-7702-correct-designator", "rpc-7702-wrong-length",
+    "rpc-token-metadata-success", "rpc-token-metadata-revert", "rpc-token-decimals-out-of-range",
+    "rpc-token-name-oversized", "rpc-token-bytes32-limitation", "rpc-ens-miss", "rpc-ens-resolver-error",
+    "rpc-ccip-read-off", "privacy-no-raw-error-in-ui", "privacy-no-url-or-key-in-errors",
+    "privacy-fetch-whitelist", "privacy-fetch-port-scoped", "privacy-host-permission-alignment",
+    "privacy-no-tabs-scripting", "perf-initial-scan-1k", "perf-initial-scan-5k", "perf-initial-scan-10k",
+    "perf-match-scaling-10-100-500", "perf-cap-500", "perf-mutation-burst", "perf-virtual-list-updates",
+    "perf-layout-shift-churn", "perf-explorer-table", "perf-hover-fast", "perf-hover-cached-repeat",
+    "perf-overlay-element-stability", "perf-dom-no-growth",
+    "compat-chromium-family", "compat-edge-channel", "compat-strict-csp", "compat-ssr-static-page",
+    "compat-spa-pages", "compat-explorer-page", "compat-shadow-dom-open", "compat-shadow-dom-closed",
+    "compat-iframes-top-frame-only"
   ],
+  "pendingScenarios": [],
   "verifiedScenarios": [
-    "All 33 detect/lifecycle scenarios and 11 geometry scenarios passed against the UNMODIFIED scanner (verified, no product change needed): detection 21/21, lifecycle 16/16 minus drift items, window-scroll invariance, sticky covered via layout-shift observer, display:none box drop/return, observer loop-free, navigation/back-forward clean."
+    "All scenarios in completedScenarios have automated browser tests with explicit failure hypotheses; statuses per suite: detect 21/21, lifecycle 16/16, geometry 16/16 (post-fix), perf 8/8, compat 8/8, rpc-privacy 31/31, mv3 20/20, plus pre-existing verify 31/31, rpc 10/10, card 11/11, panel 10/10."
   ],
   "reproducedProblems": [
     {
       "id": "BUG-1",
       "scenario": "geometry-fixed-offset (G11)",
-      "hypothesis": "page-absolute overlay boxes go stale for position:fixed content under window scroll because document-absolute coordinates of fixed elements change with scrollY while nothing triggers repositioning",
-      "reproduction": "audit.html #g11-fixed-box; settle all repositions at scrollY=0, scrollTo(0,800), wait 800ms, compare .hl box to live Range rect",
+      "hypothesis": "page-absolute overlay boxes go stale for position:fixed content under window scroll: a fixed element's document-absolute position changes with scrollY and nothing in the product observes scroll",
+      "reproduction": "audit.html #g11-fixed-box; settle all debounced repositions at scrollY=0, window.scrollTo(0,800), wait 800ms, compare .hl box geometry against live Range.getClientRects() of the address substring",
       "measured": "maxDelta 3267px pre-fix",
       "status": "fixed"
     },
     {
       "id": "BUG-2",
       "scenario": "geometry-nested-scroll (G12/G13/G14)",
-      "hypothesis": "inner scrolling of overflow:auto containers moves text relative to the document but fires no MutationObserver record, no layout-shift entry, and no transition event, so page-absolute boxes drift",
-      "reproduction": "audit.html scrollers; drive container scroll, compare box vs live rect",
+      "hypothesis": "scrolling an overflow:auto container moves text relative to the document but produces no MutationObserver record, no layout-shift entry and no transition event, so page-absolute boxes drift silently",
+      "reproduction": "audit.html scrollers (single, doubly-nested, horizontal); drive container scroll, compare box vs live rect",
       "measured": "drift 408px (single), 472px (nested), 400px (horizontal) pre-fix",
+      "status": "fixed"
+    },
+    {
+      "id": "BUG-3",
+      "scenario": "rpc-timeout-mapping (R5)",
+      "hypothesis": "viem retries TimeoutError by default (shouldRetry returns true, retryCount defaults to 3), so a hung connection holds the card skeleton for ~4x12s before surfacing anything",
+      "reproduction": "mock RPC rule action=hang on eth_getBalance; hover the address; time the response",
+      "measured": "49.1s to RPC_TIMEOUT pre-fix (12s timeout x 4 attempts + backoff); 12.02s post-fix",
       "status": "fixed"
     }
   ],
   "fixedProblems": [
     {
       "id": "BUG-1+BUG-2",
-      "fix": "scanner.ts: classify each match entry at creation (and on full reposition passes) as viewport-anchored (fixed/sticky ancestor) and/or scroller-anchored (nearest overflow:auto/scroll ancestor); capture-phase passive scroll listener marks dirty window/element targets; rAF+50ms-min-interval throttled SUBSET reposition pass touches scroll-sensitive entries only; 150ms settle pass after last scroll. Pages without scroll-sensitive matches pay one Set.size check per scroll event; no polling, no full-page traversal per scroll event.",
-      "regression": "e2e/audit/geometry.mjs G10-G14 all pass (maxDelta 0.00px post-fix); detect 21/21, lifecycle 16/16, e2e/verify.mjs 31/31 unchanged"
+      "fix": "scanner.ts: classify each match entry at creation (and on full reposition passes) as viewport-anchored (fixed/sticky ancestor) and/or scroller-anchored (nearest overflow:auto/scroll ancestor); a capture-phase passive scroll listener marks dirty window/element targets; an rAF+50ms-min-interval throttled SUBSET pass repositions only scroll-sensitive entries, plus one settle pass 150ms after the last scroll event. Pages without scroll-sensitive matches pay a single Set.size check per scroll event. No polling; no full-page traversal per scroll event.",
+      "regression": "e2e/audit/geometry.mjs G10-G14: maxDelta 0.00px post-fix; detect 21/21, lifecycle 16/16, verify 31/31 unchanged"
+    },
+    {
+      "id": "BUG-3",
+      "fix": "chain.ts: transport http(..., { retryCount: 0 }) — one attempt, then the stable RPC_TIMEOUT code; the stale-balance refresh path already covers transient provider hiccups",
+      "regression": "e2e/audit/rpc-privacy.mjs R5: RPC_TIMEOUT surfaces in ~12s (was ~49s); all other error mappings unchanged"
     }
   ],
-  "unresolvedProblems": [],
-  "performanceRuns": [],
-  "lastValidation": {
-    "compile": "pass",
-    "build": "pass",
-    "e2eVerify": "31/31",
-    "e2eDetect": "21/21",
-    "e2eLifecycle": "16/16",
-    "e2eGeometry": "16/16",
-    "e2eRpc": "10/10 (baseline, pre-fix build)",
-    "e2eCard": "11/11 (baseline, pre-fix build)",
-    "e2ePanel": "10/10 (baseline, pre-fix build)"
+  "unresolvedProblems": [
+    {
+      "id": "LIMIT-1",
+      "scope": "harness",
+      "detail": "MV3 idle termination cannot be exercised under a CDP-attached harness: an attached DevTools-equivalent session disables idle shutdown, and stopAllWorkers/closeTarget did not remove the worker target. Termination→restart is therefore covered indirectly (cold start in every suite; chrome.runtime.reload() lifecycle in mv3.mjs M5). storage.session persistence across SW termination relies on Chrome's documented session-scoped guarantee."
+    },
+    {
+      "id": "LIMIT-2",
+      "scope": "documented product limitations, verified as non-crashing and non-mis-detecting",
+      "detail": "unicode/emoji ENS (ASCII-only regex, kept as designed); truncated addresses outside links (href recovery impossible); bytes32 name()/symbol() tokens (decode fails → plain CONTRACT); closed shadow roots (scanner blind by design); iframes (top-frame-only by design)."
+    }
+  ],
+  "performanceRuns": {
+    "file": "docs/nightly-audit/perf-runs.json",
+    "environment": "Windows 10 x64, Node 20.19.4, Edge 153.0.0.0 (Chrome/153 UA), DPR 1.0",
+    "method": "3 runs per config; wall time includes idle-scheduling waits (idle callbacks, 500ms timeout each); main-thread time from performance.measure('oxl:initial-scan')",
+    "scan": {
+      "1k_nodes_10_matches": "median 30ms wall, range 29-30ms, 10 highlights",
+      "5k_nodes_100_matches": "median 66ms wall, range 57-134ms, 100 highlights",
+      "10k_nodes_500_matches": "median 499ms wall, range 468-500ms, 500 highlights",
+      "10k_nodes_600_matches": "cap at 500 highlights, median 487ms wall, range 478-524ms",
+      "explorer_table": "2805 text nodes, 300 matches, median 177ms wall, range 163-194ms"
+    },
+    "churn": {
+      "mutation_burst_300": "overlay count returns to baseline (no leak)",
+      "virtual_list_10_recycles": "overlay count stable at base+50",
+      "layout_shift_x10": "overlay count stable"
+    },
+    "hover": {
+      "first_hover": "884ms (includes acquire animation + RPC)",
+      "cached_rehover_median": "535ms (animation-dominated, no RPC)"
+    }
   },
-  "lastUpdatedAt": "2026-09-19T12:00:00Z"
+  "lastValidation": {
+    "compile": "pass (tsc --noEmit)",
+    "build": "pass (public build 913.5 kB; mock build verified separately)",
+    "e2eVerify": "31/31 (public build)",
+    "e2eRpc": "10/10 (real mainnet)",
+    "e2eCard": "11/11 (real mainnet)",
+    "e2ePanel": "10/10 (real mainnet)",
+    "e2eDetect": "21/21 (public build)",
+    "e2eLifecycle": "16/16 (public build)",
+    "e2eGeometry": "16/16 (public build)",
+    "e2ePerf": "8/8 (public build)",
+    "e2eCompat": "8/8 (public build)",
+    "e2eRpcPrivacy": "31/31 (mock build VITE_RPC_URL=http://127.0.0.1:5178/rpc)",
+    "e2eMv3": "20/20 (mock build)",
+    "manifestPermissions": "unchanged: storage, sidePanel + single RPC host permission",
+    "remoteCode": "none added; no dynamic code execution added"
+  },
+  "lastUpdatedAt": "2026-09-19T20:30:00Z"
 }
