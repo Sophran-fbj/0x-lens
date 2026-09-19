@@ -15,6 +15,14 @@ const mock = await startMockRpc();
 
 try {
   const page = await openMockAuditedPage(ctx);
+  // Surface content-script crashes and console errors — the card pipeline is
+  // silent-on-failure otherwise (observed while debugging S6 on CI).
+  page.on('pageerror', (e) => console.log('[page-error]', String(e).slice(0, 300)));
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') {
+      console.log('[page-console]', m.type(), m.text().slice(0, 300));
+    }
+  });
   const card = cardHelpers(page);
   const ADDRS = await page.evaluate(() => window.__auditAddrs);
   const workerUrl = () => ctx.serviceWorkers()[0]?.url() ?? '';
@@ -112,6 +120,21 @@ try {
     `posts=${identityPosts}`);
 
   // ---- S6: slow identity A, fast identity B — stale response must lose -----
+  // Main-world event tap: the hover controller cancels intent on ANY scroll
+  // or mouseout; S6 failures on slow runners trace to that window.
+  await page.evaluate(() => {
+    window.__evt = [];
+    for (const t of ['scroll', 'mouseover', 'mouseout']) {
+      window.addEventListener(t, (e) => {
+        const tg = e.target;
+        window.__evt.push({
+          t,
+          ts: Math.round(performance.now()),
+          tg: tg instanceof Element ? `${tg.tagName}.${(tg.className || '').toString().slice(0, 24)}` : String(tg),
+        });
+      }, { capture: true, passive: true });
+    }
+  });
   await mock.reset();
   const SLOW = ADDRS[17], FAST = ADDRS[18];
   await mock.config([
@@ -144,6 +167,7 @@ try {
       fastBoxes: [...document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll(`.hl[data-address="${fast}"]`)].length,
       slowBoxes: [...document.querySelector('[data-0x-lens-overlay]').shadowRoot.querySelectorAll(`.hl[data-address="${slow}"]`)].length,
       overlayHosts: document.querySelectorAll('[data-0x-lens-overlay]').length,
+      events: window.__evt?.slice(-25) ?? null,
     }), [SLOW, FAST, fastPt]).catch((e) => String(e));
     console.log('[s6] state on timeout:', JSON.stringify({ pt: fastPt, ...st }));
     // node side: did FAST's resolve even reach the wire, and is the SW alive?
