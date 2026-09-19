@@ -10,7 +10,7 @@
 
 ## 1. Executive summary
 
-**112 automated checks across 9 suites, all green at final validation** — plus 3 real product bugs reproduced first, fixed minimally, and locked behind regression tests:
+**182 automated checks across 11 suites, all green at final validation** — plus 3 real product bugs reproduced first, fixed minimally, and locked behind regression tests:
 
 | Bug | Symptom | Root cause | Fix | Regression |
 |---|---|---|---|---|
@@ -248,4 +248,4 @@ Production-code changes are limited to `src/core/scanner/scanner.ts` (BUG-1/2 fi
 | `node e2e/audit/rpc-privacy.mjs` (mock build) | 31/31 |
 | `node e2e/audit/mv3.mjs` (mock build) | 20/20 |
 
-**Total: 181 checks green across both build variants.** Fixture and mock servers stopped after runs; test browsers closed; ports 5173/5178 released; port 3100 untouched.
+**Total: 182 checks green across both build variants.** Fixture and mock servers stopped after runs; test browsers closed; ports 5173/5178 released; port 3100 untouched.
