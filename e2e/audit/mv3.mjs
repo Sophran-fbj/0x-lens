@@ -26,8 +26,28 @@ try {
   check('M1b extension id resolvable', Boolean(extId));
 
   // ---- Panel-as-tab helper (same App code, same storage watch) -------------
-  let panel = await ctx.newPage();
-  await panel.goto(`chrome-extension://${extId}/sidepanel.html`);
+  // Extension-page navigation transiently fails with ERR_BLOCKED_BY_CLIENT
+  // while the extension (re)loads — retry that error only; anything else
+  // fails the suite immediately. On exhaustion, report the live service
+  // workers so the log shows whether the extension re-registered at all.
+  const openExtensionPage = async (url) => {
+    const p = await ctx.newPage();
+    const deadline = Date.now() + 30_000;
+    for (;;) {
+      try {
+        await p.goto(url);
+        return p;
+      } catch (e) {
+        if (Date.now() > deadline || !String(e).includes('ERR_BLOCKED_BY_CLIENT')) {
+          e.message += ` (service workers: ${ctx.serviceWorkers().map((w) => w.url()).join(', ') || 'none'})`;
+          throw e;
+        }
+        await page.waitForTimeout(500);
+      }
+    }
+  };
+
+  let panel = await openExtensionPage(`chrome-extension://${extId}/sidepanel.html`);
   await panel.waitForTimeout(400);
 
   const swSend = (msg) =>
@@ -110,22 +130,20 @@ try {
     JSON.stringify(Object.keys(preKeys)));
 
   await panel.evaluate(() => chrome.runtime.reload());
-  // the reload destroys the old panel page — open a fresh one. During the
-  // reload window the extension's URL handler is briefly unavailable and the
-  // navigation fails with ERR_BLOCKED_BY_CLIENT (observed on CI runners,
-  // where the 1.8s settle wait is not always enough); retry that transient
-  // error only — anything else fails the suite immediately.
+  // the reload destroys the old panel page. chrome-extension:// navigations
+  // stay ERR_BLOCKED_BY_CLIENT until the reloaded extension is serving again
+  // — CI runners need far longer than the local ~2s. First wait for a
+  // background service worker to (re)appear, then open the fresh panel with
+  // the retrying helper.
   await page.waitForTimeout(1800);
-  panel = await ctx.newPage();
-  for (let attempt = 0; ; attempt++) {
-    try {
-      await panel.goto(`chrome-extension://${extId}/sidepanel.html`);
-      break;
-    } catch (e) {
-      if (attempt >= 10 || !String(e).includes('ERR_BLOCKED_BY_CLIENT')) throw e;
-      await page.waitForTimeout(500);
+  const swDeadline = Date.now() + 30_000;
+  while (!ctx.serviceWorkers().some((w) => w.url().includes('background.js'))) {
+    if (Date.now() > swDeadline) {
+      throw new Error('no background service worker registered after extension reload');
     }
+    await page.waitForTimeout(250);
   }
+  panel = await openExtensionPage(`chrome-extension://${extId}/sidepanel.html`);
   await panel.waitForTimeout(500);
 
   const postKeys = await panel.evaluate(() => chrome.storage.session.get(null));
