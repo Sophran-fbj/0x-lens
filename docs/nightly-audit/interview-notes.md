@@ -55,7 +55,7 @@ fix while sticky did not.
 
 The fix keeps the "no scroll listeners" spirit for the 99% case: entries are
 classified at scan time as viewport-anchored or scroller-anchored, and only
-that subset is repositioned on scroll events — rAF-throttled, ≥50 ms apart,
+that subset is repositioned on scroll events — throttled to a ≥50 ms cadence,
 with one settle pass. No polling, no per-event full traversal.
 
 ## MV3 service worker lifecycle

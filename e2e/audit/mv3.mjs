@@ -50,12 +50,24 @@ try {
   await mock.config([
     { id: 'bal0', method: 'eth_getBalance', addrSub: ADDRS[0].toLowerCase(), action: 'result', value: '0xde0b6b3a7640000' },
   ]);
+  const responses = [];
   for (const g of garbage) {
-    const resp = await swSend(g);
-    if (resp?.thrown) check(`M2 malformed ${JSON.stringify(g)?.slice(0, 30)} handled`, false, resp.thrown);
+    responses.push(await swSend(g));
+    if (responses[responses.length - 1]?.thrown) {
+      check(`M2 malformed ${JSON.stringify(g)?.slice(0, 30)} handled`, false,
+        responses[responses.length - 1].thrown);
+    }
   }
   check('M2 malformed messages never crash the SW (health probe resolves)', await swHealthy());
-  check('M2b errors stay stable codes', true); // detailed codes asserted in rpc-privacy
+  // resolve-shaped garbage must answer with stable error CODES only
+  // (never raw provider text, never undefined).
+  const codeSet = new Set(['RPC_TIMEOUT', 'RPC_UNREACHABLE', 'LOOKUP_FAILED', 'NAME_NOT_FOUND']);
+  const resolveReplies = garbage
+    .map((g, i) => (g && g.type === 'lens/resolve' ? responses[i] : null))
+    .filter(Boolean);
+  const stable = resolveReplies.every((r) => r?.ok === false && codeSet.has(r.error));
+  check('M2b malformed resolves answer with stable error codes only', stable,
+    JSON.stringify(resolveReplies));
 
   // ---- S3: sender without a tab id (panel page) → openPanel is safe --------
   const openResp = await swSend({ type: 'lens/openPanel', identity: { kind: 'address', address: ADDRS[0] } });

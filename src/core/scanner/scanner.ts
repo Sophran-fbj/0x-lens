@@ -65,7 +65,7 @@ export class LensScanner {
   /** Entries whose boxes go stale on some scroll (fixed/sticky ancestors or
    *  a scrollable ancestor container). Usually a small subset — often empty. */
   private readonly scrollSensitive = new Set<MatchEntry>();
-  private scrollRaf = 0;
+  private scrollPassTimer = 0;
   private lastScrollPassAt = 0;
   private scrollSettleTimer: number | null = null;
   private scrollWindowDirty = false;
@@ -292,9 +292,10 @@ export class LensScanner {
 
   // ---- scroll-driven subset repositioning ---------------------------------
 
-  /** Capture-phase scroll listener: mark what moved, coalesce to one subset
-   *  pass per animation frame (plus one settle pass). Entries without scroll
-   *  anchors are never touched; pages without any pay a Set.size check. */
+  /** Capture-phase scroll listener: mark what moved, coalesce subset passes
+   *  to a ≥50 ms cadence during continuous scrolling (plus one settle pass).
+   *  Entries without scroll anchors are never touched; pages without any pay
+   *  a Set.size check. */
   private readonly onScrollCapture = (e: Event): void => {
     if (this.scrollSensitive.size === 0) return;
     const t = e.target;
@@ -303,11 +304,11 @@ export class LensScanner {
     } else {
       this.scrollWindowDirty = true; // root scroller (document/documentElement/body)
     }
-    if (this.scrollRaf === 0) {
+    if (this.scrollPassTimer === 0) {
       const now = performance.now();
       const wait = Math.max(0, SCROLL_MIN_INTERVAL_MS - (now - this.lastScrollPassAt));
-      this.scrollRaf = window.setTimeout(() => {
-        this.scrollRaf = 0;
+      this.scrollPassTimer = window.setTimeout(() => {
+        this.scrollPassTimer = 0;
         this.runScrollPass();
       }, wait) as unknown as number;
     }

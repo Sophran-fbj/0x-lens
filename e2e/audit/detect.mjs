@@ -41,8 +41,8 @@ try {
   check('D18 email domains NOT highlighted (any depth)', (await countHl(page, 'audited-email.eth')) === 0);
   check('D19 unregistered name still detected as match',
     (await countHl(page, 'definitely-not-registered-audit.eth')) === 1);
-  check('D20 unicode/emoji ENS NOT highlighted (documented limitation)',
-    (await countHl(page, 'example.eth')) === 0);
+  check('D20 unicode/emoji ENS (éxample.eth / 🤩.eth) NOT highlighted (documented limitation)',
+    (await countHl(page, 'éxample.eth')) === 0 && (await countHl(page, '🤩.eth')) === 0);
 
   // skipped containers: no highlight may exist for A19 planted in
   // script/style/noscript/template/textarea/input/contenteditable

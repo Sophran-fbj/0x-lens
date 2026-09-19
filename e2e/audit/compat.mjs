@@ -50,11 +50,15 @@ try {
   check('C2d parent overlay healthy alongside iframes',
     (await countHl(page, '0x95A05587Aea3452B18E91b96188E3D118aB8032d')) === 1);
 
-  // closed shadow root: content invisible to the scanner — must NOT crash
-  // the scan and must not leak highlights elsewhere.
-  const afterClosed = await countHl(page, '0xc6EEBfA49C31358a741e725fF77FC50e0b84eEeB');
-  check('C3 page with closed shadow root scanned without crash', afterClosed >= 0,
-    `afterClosed highlights=${afterClosed}`);
+  // closed shadow root: content invisible to the scanner — the scan must
+  // still COMPLETE (stats present, nodes walked) rather than crash midway.
+  const scanOk = await page.evaluate(() => {
+    const raw = document.querySelector('[data-0x-lens-overlay]')?.dataset.scanStats;
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    return s.textNodes > 0;
+  });
+  check('C3 page with closed shadow root scanned without crash', scanOk);
   const closedVisible = await page.evaluate(() => {
     // the closed root is unreachable; its text exists only inside
     const host = document.getElementById('closed-host');

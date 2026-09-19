@@ -75,6 +75,16 @@ function matchRule(method, params) {
 }
 
 function respond(call) {
+  // Real nodes reject malformed addresses before anything else; being
+  // permissive here would let invalid identities get "resolved" and cached.
+  if ((call.method === 'eth_getBalance' || call.method === 'eth_getCode') &&
+      !/^0x[0-9a-fA-F]{40}$/.test(String(call.params?.[0] ?? ''))) {
+    return {
+      jsonrpc: '2.0',
+      id: call.id,
+      error: { code: -32602, message: 'invalid address' },
+    };
+  }
   const rule = matchRule(call.method, call.params);
   if (!rule) {
     return { jsonrpc: '2.0', id: call.id, result: DEFAULTS[call.method] ?? '0x' };
@@ -236,23 +246,29 @@ const server = http.createServer((req, res) => {
     if (out.some((o) => o.__hang)) return; // never respond
     const delayed = out.filter((o) => o.__delayMs);
     const send = () => {
+      // HTTP-layer rule hits (status / rawbody) apply to the WHOLE POST:
+      // real servers answer the request, not individual batch items, so the
+      // suites must see a true HTTP 4xx/5xx or non-JSON body — never a
+      // JSON batch containing malformed items.
+      const httpStatus = out.find((o) => o.__httpStatus !== undefined)?.__httpStatus;
+      const rawBody = out.find((o) => o.__raw !== undefined)?.__raw;
+      if (httpStatus !== undefined) {
+        res.writeHead(httpStatus, { 'content-type': 'text/plain' });
+        res.end(rawBody ?? `mock RPC http ${httpStatus}`);
+        if (postIdx >= 0) log.posts[postIdx].res = `HTTP ${httpStatus}`;
+        return;
+      }
+      if (rawBody !== undefined) {
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        res.end(rawBody);
+        if (postIdx >= 0) log.posts[postIdx].res = 'non-JSON body';
+        return;
+      }
       const clean = (o) => {
         const { __delayMs, __hang, __httpStatus, __raw, ...rest } = o;
-        if (__httpStatus !== undefined) return { __httpStatus, __raw };
-        if (__raw !== undefined) return { __raw };
         return rest;
       };
       const final = (Array.isArray(parsed) ? out.map(clean) : clean(out[0]));
-      if (!Array.isArray(final) && final.__httpStatus !== undefined) {
-        res.writeHead(final.__httpStatus, { 'content-type': 'text/plain' });
-        res.end(final.body);
-        return;
-      }
-      if (!Array.isArray(final) && final.__raw !== undefined) {
-        res.writeHead(200, { 'content-type': 'text/plain' });
-        res.end(final.__raw);
-        return;
-      }
       res.writeHead(200, { 'content-type': 'application/json' });
       const outText = JSON.stringify(final);
       if (postIdx >= 0) log.posts[postIdx].res = outText.slice(0, 3000);

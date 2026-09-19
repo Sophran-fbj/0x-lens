@@ -17,10 +17,13 @@ export function wipeProfile() {
 }
 
 export async function startMockRpc() {
+  // stderr is captured (not ignored) so a failed bind is diagnosable.
   const child = spawn(process.execPath, ['e2e/audit/mock-rpc-server.mjs'], {
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', 'pipe'],
     detached: false,
   });
+  let stderr = '';
+  child.stderr?.on('data', (c) => (stderr += c));
   // wait for readiness
   for (let i = 0; i < 50; i++) {
     try {
@@ -29,6 +32,16 @@ export async function startMockRpc() {
     } catch {
       await new Promise((r) => setTimeout(r, 100));
     }
+  }
+  // A readiness hit is not enough: if a zombie process still holds 5178,
+  // this child died with EADDRINUSE while the probe answered against the
+  // ZOMBIE (stale rules, stale code). Fail fast instead of silently
+  // configuring and reading an impostor.
+  if (child.exitCode !== null) {
+    throw new Error(
+      `mock RPC server exited immediately (port 5178 held by another process?): ` +
+        stderr.slice(0, 300),
+    );
   }
   return {
     async config(rules) {
