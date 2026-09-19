@@ -18,7 +18,9 @@ try {
 // e2e scripts assume cwd = project root.
 export const ROOT = process.cwd().replace(/\\/g, '/');
 export const EXT_PATH = `${ROOT}/.output/chrome-mv3`;
-export const PROFILE = `${ROOT}/.playwright-profile`;
+// Audit suites against a mock-RPC build isolate their profile so cached
+// service workers from the public-RPC build can never leak between variants.
+export const PROFILE = process.env.OXL_E2E_PROFILE ?? `${ROOT}/.playwright-profile`;
 
 export async function launchExtension({ viewport, recordVideo } = {}) {
   const useBundledChromium = process.env.OXL_E2E_BROWSER === 'chromium';
