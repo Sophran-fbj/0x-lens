@@ -24,23 +24,34 @@ export async function startMockRpc() {
   });
   let stderr = '';
   child.stderr?.on('data', (c) => (stderr += c));
-  // wait for readiness
+  // Probe readiness AND identity in one step: /__log answers with the
+  // SERVER's pid, which must equal the pid of the child WE spawned.
+  let serverPid = null;
   for (let i = 0; i < 50; i++) {
     try {
-      await fetch(`${MOCK_BASE}/__log`);
+      const res = await fetch(`${MOCK_BASE}/__log`);
+      serverPid = (await res.json()).pid ?? null;
       break;
     } catch {
       await new Promise((r) => setTimeout(r, 100));
     }
   }
-  // A readiness hit is not enough: if a zombie process still holds 5178,
-  // this child died with EADDRINUSE while the probe answered against the
-  // ZOMBIE (stale rules, stale code). Fail fast instead of silently
-  // configuring and reading an impostor.
-  if (child.exitCode !== null) {
+  // Why pid and not child liveness: a zombie mock from a previous crashed
+  // run answers the probe within ~50 ms while THIS child is still loading
+  // viem (~600 ms before EADDRINUSE kills it) — an exitCode check passes in
+  // exactly the window it is needed for. The pid comparison is race-free.
+  if (serverPid === null) {
+    child.kill();
     throw new Error(
-      `mock RPC server exited immediately (port 5178 held by another process?): ` +
-        stderr.slice(0, 300),
+      `mock RPC server never became ready on ${MOCK_BASE}: ${stderr.slice(0, 300)}`,
+    );
+  }
+  if (serverPid !== child.pid) {
+    child.kill();
+    throw new Error(
+      `port 5178 is held by pid ${serverPid} — an impostor (zombie mock from a ` +
+        `previous crashed run), not this suite's child (pid ${child.pid}). Kill the ` +
+        `zombie before running the suites. child stderr: ${stderr.slice(0, 200)}`,
     );
   }
   return {

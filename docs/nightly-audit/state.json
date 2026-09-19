@@ -148,11 +148,11 @@
     "reviewer": "review-agent (defect-first, read-only)",
     "findings": [
       {"id": "P2-1", "fix": "mock-rpc-server: status/rawbody rule hits now answer the WHOLE POST at the HTTP layer (real-server semantics); single-call __raw bug fixed; default responder validates addresses so malformed identities surface as stable codes instead of being cached"},
-      {"id": "P2-2", "fix": "startMockRpc captures child stderr and fails the suite when the child exits during readiness (zombie port impostor impossible)"},
+      {"id": "P2-2", "fix": "startMockRpc identity-checks the mock server: /__log answers with its pid and the readiness probe asserts pid === child.pid. Supersedes an earlier exitCode check that lost the startup race (zombie answers the probe at ~t+50ms while the doomed child is still loading viem, ~t+619ms to EADDRINUSE). Regression: e2e/audit/verify-zombie-guard.mjs fires startMockRpc inside the exact race window and asserts the throw, plus the normal path."},
       {"id": "P3-1", "fix": "tautological assertions made falsifiable: D20 now queries the planted unicode/emoji strings; M2b asserts resolve-shaped garbage answers with known codes; compat C3 asserts scan completion"},
       {"id": "P3-2", "fix": "rAF naming aligned with implementation (50ms-min-interval setTimeout) in scanner field/comment, report, state.json, interview-notes"}
     ],
-    "postFixValidation": "rpc-privacy 31/31, mv3 20/20 (mock build); verify 31/31, detect 21/21, compat 8/8, geometry 16/16, lifecycle 16/16 (public build)"
+    "postFixValidation": "rpc-privacy 31/31, mv3 20/20 (mock build); verify 31/31, detect 21/21, compat 8/8, geometry 16/16, lifecycle 16/16 (public build); zombie-guard regression PASS"
   },
-  "lastUpdatedAt": "2026-09-19T22:00:00Z"
+  "lastUpdatedAt": "2026-09-19T23:00:00Z"
 }

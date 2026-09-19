@@ -197,7 +197,10 @@ const server = http.createServer((req, res) => {
   }
   if (req.url === '/__log') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(log));
+    // pid = identity proof: the suites' readiness probe compares it with
+    // the pid of the child THEY spawned, so a zombie server from a previous
+    // crashed run can never be configured by mistake.
+    res.end(JSON.stringify({ pid: process.pid, ...log }));
     return;
   }
   if (req.url?.startsWith('/gateway/')) {
