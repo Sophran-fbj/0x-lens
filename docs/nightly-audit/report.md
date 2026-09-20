@@ -218,13 +218,13 @@ Churn: mutation burst (300 nodes), virtual-list recycle ×10, layout-shift ×10 
 | `d82d601` test: add mock-RPC suites for privacy boundary, MV3 lifecycle and cache semantics | `e2e/audit/mock-*.{mjs}`, `rpc-privacy.mjs`, `mv3.mjs`, `e2e/browser.mjs` (profile override) |
 | `889add4` perf: add parameterised scan, churn and hover benchmark suite | `fixture/audit-perf.html`, `e2e/audit/perf.mjs`, `docs/nightly-audit/perf-runs.json` |
 | `50ba7ba` test: add compatibility suite for strict CSP, iframes and closed shadow roots | `fixture/audit-compat.html`, `e2e/audit/compat.mjs` |
-| *(final)* docs: audit report | `docs/nightly-audit/{report.md,interview-notes.md,state.json}` |
+| *(final)* docs: audit report | `docs/nightly-audit/{report.md,engineering-notes.md,state.json}` |
 
 Production-code changes are limited to `src/core/scanner/scanner.ts` (BUG-1/2 fix) and `src/core/services/chain.ts` (BUG-3 fix). No existing tests were deleted, skipped, or weakened; no timeouts were relaxed to mask failures; pixel tolerance stayed at 1.5 px.
 
 ## 7. Test-infrastructure findings (documented, fixed in tests)
 
-1. **Profile-cached service worker**: a persistent profile keeps serving a stale extension SW after rebuilds — it silently answered with a *previous build's* RPC target (balance 0 from the public endpoint while the mock expected the call). All mock suites now wipe their profile at start (`wipeProfile()`); matches the hazard documented in CLAUDE.md.
+1. **Profile-cached service worker**: a persistent profile keeps serving a stale extension SW after rebuilds — it silently answered with a *previous build's* RPC target (balance 0 from the public endpoint while the mock expected the call). All mock suites now wipe their profile at start (`wipeProfile()`); matches a hazard documented in the project's contributor notes.
 2. **Zombie mock server**: a crashed suite run left a server bound to 5178; later suites' config/log calls silently hit it (stale rules, stale code). A first guard (child exit-code check) lost the startup race — the zombie answers the readiness probe at ~50 ms while the doomed child needs ~600 ms to hit EADDRINUSE. The final guard is race-free identity: `__log` answers with the server's pid and `startMockRpc` asserts it equals the pid of the child it spawned (regression: `e2e/audit/verify-zombie-guard.mjs` reproduces the exact race window). Suites spawn their own server and `stop()` it in `finally`.
 3. **viem 2.56 reverse resolution** calls the v2 universal resolver (`0xeeee…eeee`) with `reverseWithGateways`; a bare `0x` response raises `ContractFunctionExecutionError` (not null). The mock replays real-chain captures for faithful defaults.
 4. **`eth_getCode`, not `eth_getBytecode`**, is the JSON-RPC method viem's `getBytecode` sends (mock rule naming).

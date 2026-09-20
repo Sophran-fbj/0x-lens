@@ -1,7 +1,7 @@
-# Interview Notes — 0x-lens reliability audit
+# Engineering notes — 0x-lens reliability audit
 
-Answers to the required questions, grounded in what this audit actually
-found and measured (not aspiration — each claim points at a test).
+How the reliability audit was done, grounded in what it actually found and
+measured (not aspiration — each claim points at a test).
 
 ## TreeWalker and MutationObserver: who does what
 

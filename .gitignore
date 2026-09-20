@@ -10,6 +10,8 @@ node_modules/
 fixture-server.log
 e2e/video/
 e2e/*.png
+*.tsbuildinfo
+docs/nightly-audit/state.json
 
 # Local AI assistant files
 CLAUDE.md

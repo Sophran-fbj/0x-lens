@@ -3,6 +3,7 @@
 English | [简体中文](README.zh-CN.md)
 
 [![CI](https://github.com/Sophran-fbj/0x-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/Sophran-fbj/0x-lens/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Sophran-fbj/0x-lens)](https://github.com/Sophran-fbj/0x-lens/releases)
 
 > Hover any Ethereum address or ENS name on the web to reveal its onchain identity.
 

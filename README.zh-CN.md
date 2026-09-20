@@ -3,6 +3,7 @@
 [English](README.md) | 简体中文
 
 [![CI](https://github.com/Sophran-fbj/0x-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/Sophran-fbj/0x-lens/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Sophran-fbj/0x-lens)](https://github.com/Sophran-fbj/0x-lens/releases)
 
 > 在网页上悬停任意 Ethereum 地址或 ENS 名称，即刻查看其链上身份。
 

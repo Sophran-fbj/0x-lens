@@ -2,6 +2,7 @@
   "name": "0x-lens",
   "description": "Hover Ethereum addresses or ENS names on the web to reveal their onchain identity.",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "wxt",
