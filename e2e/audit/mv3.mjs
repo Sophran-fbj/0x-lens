@@ -291,7 +291,15 @@ try {
     Object.keys(preKeys).some((k) => k.startsWith('lens:p:')),
     JSON.stringify(Object.keys(preKeys)));
 
-  await panel.evaluate(() => chrome.runtime.reload());
+  // The reload side effect is what matters; the evaluate's own response can
+  // be lost when the panel page is torn down with the extension (observed as
+  // an intermittent "Target page, context or browser has been closed" on CI)
+  // — that is the expected outcome, not a failure.
+  try {
+    await panel.evaluate(() => chrome.runtime.reload());
+  } catch (e) {
+    if (!/Target page, context or browser has been closed/.test(String(e))) throw e;
+  }
   // the reload destroys the old panel page — open a fresh one. The MV3
   // service worker restarts lazily, so opening the page IS what re-activates
   // the extension; the navigation is retried, not awaited behind a worker
