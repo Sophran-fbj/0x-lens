@@ -34,7 +34,7 @@ export default defineConfig({
   vite: () => ({ plugins: [tailwindcss() as never] }),
   manifest: {
     name: '0x Lens',
-    version: '0.1.0',
+    version: '0.1.1',
     description: 'Hover Ethereum addresses or ENS names on the web to reveal their onchain identity.',
     permissions: ['storage', 'sidePanel'],
     host_permissions: [`${new URL(resolveRpcUrl()).origin}/*`],
