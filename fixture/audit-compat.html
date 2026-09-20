@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>0x Lens — compat fixture</title>
+  <style>
+    body { font-family: ui-sans-serif, sans-serif; max-width: 860px; margin: 32px auto; padding: 0 16px; }
+    .addr { font-family: ui-monospace, monospace; }
+    iframe { width: 100%; height: 90px; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h1>0x Lens compat fixture</h1>
+  <p class="addr">top-level: 0x95A05587Aea3452B18E91b96188E3D118aB8032d (A7)</p>
+
+  <h2>iframes (same-origin srcdoc) — top-frame-only scanner must not inject</h2>
+  <iframe id="f1" srcdoc='<p class="addr">iframe 1: 0x6ed4C598385601a4Ce6374F66Cd00f5d80B88D73</p>'></iframe>
+  <iframe id="f2" srcdoc='<p class="addr">iframe 2: 0xAe25A12b921147a72793601f3d6Ae1705E52625D</p>'></iframe>
+  <iframe id="f3" srcdoc='<p class="addr">iframe 3: 0x1857b9dDBc7BB462246D5390DBCE9A989Fe42088</p>'></iframe>
+  <iframe id="f4" srcdoc='<p class="addr">iframe 4: 0x412B25503Ae1AB1C6C6bEeBAAD91FC7053fC97d1</p>'></iframe>
+
+  <h2>closed shadow root — scanner cannot see inside (documented limitation)</h2>
+  <div id="closed-host"></div>
+  <p id="after-closed" class="addr">after closed root: 0xc6EEBfA49C31358a741e725fF77FC50e0b84eEeB (A21)</p>
+
+  <script>
+    const host = document.getElementById('closed-host');
+    const root = host.attachShadow({ mode: 'closed' });
+    const p = document.createElement('p');
+    p.className = 'addr';
+    p.textContent = 'hidden in closed root: 0x87f89589bc3e899A49E8e394A21E97ab4c0eC8f0 (A39)';
+    root.appendChild(p);
+  </script>
+</body>
+</html>

@@ -23,7 +23,15 @@ export const publicClient = createPublicClient({
   // leave as ONE JSON-RPC batch POST instead of three HTTP requests.
   // timeout: a hung connection (bad routing, dropped TCP) surfaces as
   // RPC_TIMEOUT instead of an eternal skeleton.
-  transport: http(rpcUrl, { batch: true, timeout: 12_000 }),
+  transport: http(rpcUrl, {
+    batch: true,
+    timeout: 12_000,
+    // viem retries TimeoutError and 5xx/429 by default (3 more attempts) —
+    // a hung connection would then hold the card skeleton for ~4×12s before
+    // surfacing anything. One attempt, then the stable RPC_TIMEOUT code: the
+    // user can re-hover (and the stale-balance path still covers hiccups).
+    retryCount: 0,
+  }),
 });
 
 /**

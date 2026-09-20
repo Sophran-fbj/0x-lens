@@ -8,7 +8,7 @@ jobs:
   checks:
     name: Compile, build, and offline E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
 
@@ -51,6 +51,41 @@ jobs:
 
           curl --fail --silent http://127.0.0.1:5173/ > /dev/null
           xvfb-run -a node e2e/verify.mjs
+
+      - name: Run audit suites (public build, then mock-RPC build)
+        env:
+          OXL_E2E_BROWSER: chromium
+        run: |
+          npm run fixture -- --host 127.0.0.1 > /tmp/0x-lens-fixture.log 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid"' EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5173/ > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          curl --fail --silent http://127.0.0.1:5173/ > /dev/null
+
+          # Offline audit suites against the public build produced above
+          # (perf is excluded on purpose: wall-clock sensitive, and it
+          # rewrites docs/nightly-audit/perf-runs.json).
+          for suite in detect lifecycle geometry compat; do
+            echo "::group::audit/${suite}"
+            xvfb-run -a node "e2e/audit/${suite}.mjs"
+            echo "::endgroup::"
+          done
+
+          # Mock-RPC variant: rebuild against the local mock, guard against
+          # an impostor on 5178, then the two suites. Sequential by nature:
+          # each suite spawns its own server on 127.0.0.1:5178 and wipes its
+          # isolated profile on startup.
+          VITE_RPC_URL=http://127.0.0.1:5178/rpc npm run build
+          node e2e/audit/verify-zombie-guard.mjs
+          OXL_E2E_PROFILE=.playwright-profile-mock xvfb-run -a node e2e/audit/rpc-privacy.mjs
+          OXL_E2E_PROFILE=.playwright-profile-mock xvfb-run -a node e2e/audit/mv3.mjs
 
   release:
     name: Publish Chrome ZIP

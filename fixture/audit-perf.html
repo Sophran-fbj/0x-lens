@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>0x Lens — perf fixture</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 900px; margin: 24px auto; padding: 0 16px; color: #1c1f26; }
+    .addr { font-family: ui-monospace, monospace; }
+    table { border-collapse: collapse; width: 100%; }
+    td, th { border: 1px solid #e5e7eb; padding: 2px 6px; font-size: 12px; }
+    #churn-host p { margin: 2px 0; }
+  </style>
+</head>
+<body>
+  <h1>0x Lens perf fixture</h1>
+  <p id="stats-line">generating…</p>
+  <div id="content"></div>
+  <div id="churn-host"></div>
+  <button id="burst">mutation burst (300 inject/remove)</button>
+  <button id="vlist">virtual-list recycle ×10</button>
+  <button id="shift10">10 layout shifts</button>
+
+  <script>
+    // Deterministic addresses (EIP-55, generated via viem).
+    const ADDRS = ["0xF427EBdf59e4eC6810417B50E97dE4a668f971ff","0x2bD9d63642dbc5F920ECbbB75b94460e91e0182B","0xa7d37E6367751c77DA31b63430Aa4611689C020B","0x4659c414EdAACD3e0170DB521a31F19e2DBebA3e","0xFC47ee8fe0376830B5219b91bA52F7eA9071feb2","0x283AcA4f9e6Bd7F624592FAcc7cD36968D496463","0x1c6B50B65b149Fb6e2003855ec5E01011E145419","0x95A05587Aea3452B18E91b96188E3D118aB8032d","0x6f556DD22EdEb8E1E7Be77D7A9CfCAaa996f07FC","0x7EE5c0e3f733d2c3Cfb508Ed9C9dC03933E0794d","0x3a7A435a45C8AB49FCbF9b5471cE73aDd0f5cFFE","0xa420670F8B83276D452E192a6B4922C4E8e2321F","0x303B619f43Ba9b9F8814fE7B759b84ABD6eb0d60","0x4d5F4b206921c330b0b6A7B34311C2c1Fd027F98","0x4ac02e705b26bb507856cfF9f52ea26Ac53E2813","0x05BC6b7899C49bB60567bB9732ED28eaAd15abfC","0xBC8423D62000F83C1c887c945A267971E26F8772","0x6ed4C598385601a4Ce6374F66Cd00f5d80B88D73","0xAe25A12b921147a72793601f3d6Ae1705E52625D","0x1857b9dDBc7BB462246D5390DBCE9A989Fe42088"];
+    const q = new URLSearchParams(location.search);
+    const NODES = parseInt(q.get('nodes') ?? '1000', 10);
+    const MATCHES = parseInt(q.get('matches') ?? '10', 10);
+    const TABLE = q.get('table') === '1';
+
+    const filler = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore. ';
+    const content = document.getElementById('content');
+
+    // address-bearing text nodes spread evenly across the first MATCHES of NODES
+    const matchEvery = Math.max(1, Math.floor(NODES / Math.max(1, MATCHES)));
+    let matchCount = 0;
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < NODES; i++) {
+      const p = document.createElement('p');
+      if (i % matchEvery === 0 && matchCount < MATCHES) {
+        p.className = 'addr';
+        p.textContent = `row ${i}: ${ADDRS[i % ADDRS.length]} ${filler.slice(0, 20)}`;
+        matchCount++;
+      } else {
+        p.textContent = `row ${i}: ${filler.slice(0, 80)}`;
+      }
+      frag.appendChild(p);
+    }
+    content.appendChild(frag);
+
+    if (TABLE) {
+      const tbl = document.createElement('table');
+      const body = document.createElement('tbody');
+      for (let r = 0; r < 300; r++) {
+        const tr = document.createElement('tr');
+        for (let c = 0; c < 6; c++) {
+          const td = document.createElement('td');
+          if (c === 2 && r % 2 === 0) {
+            td.className = 'addr';
+            td.textContent = ADDRS[r % ADDRS.length];
+          } else {
+            td.textContent = `cell ${r}/${c} ${filler.slice(0, 14)}`;
+          }
+          tr.appendChild(td);
+        }
+        body.appendChild(tr);
+      }
+      tbl.appendChild(body);
+      content.appendChild(tbl);
+    }
+
+    document.getElementById('stats-line').textContent =
+      `nodes=${NODES} matches=${matchCount} table=${TABLE}`;
+
+    // ---- post-scan churn scenarios -----------------------------------------
+    document.getElementById('burst').addEventListener('click', () => {
+      const host = document.getElementById('churn-host');
+      for (let i = 0; i < 300; i++) {
+        const p = document.createElement('p');
+        p.textContent = `churn ${i}: ${filler.slice(0, 40)}`;
+        host.appendChild(p);
+        if (i % 2 === 0) p.remove();
+      }
+    });
+
+    const vlistNodes = [];
+    let vround = 0;
+    document.getElementById('vlist').addEventListener('click', () => {
+      const host = document.getElementById('churn-host');
+      if (vlistNodes.length === 0) {
+        for (let i = 0; i < 50; i++) {
+          const p = document.createElement('p');
+          p.className = 'addr';
+          p.textContent = `vrow ${i}: ${ADDRS[i % ADDRS.length]}`;
+          host.appendChild(p);
+          vlistNodes.push(p);
+        }
+        return;
+      }
+      vround++;
+      vlistNodes.forEach((p, i) => {
+        p.textContent = `vrow r${vround} ${i}: ${ADDRS[(i + vround) % ADDRS.length]} ${filler.slice(0, 10)}`;
+      });
+    });
+
+    document.getElementById('shift10').addEventListener('click', () => {
+      const target = content.firstElementChild;
+      let i = 0;
+      const iv = setInterval(() => {
+        target.style.marginTop = `${(i % 2) * 40}px`;
+        if (++i >= 10) clearInterval(iv);
+      }, 120);
+    });
+  </script>
+</body>
+</html>
